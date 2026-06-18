@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Weather Ops — 미리보기 (데모)</title>
+<style>
+:root{--bg:#0f1419;--panel:#1a212b;--panel2:#222c38;--line:#2d3a48;--text:#e6edf3;--muted:#8b98a5;--go:#2ea043;--caution:#d29922;--nogo:#f85149;--na:#5a6673;--accent:#4493f8}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Apple SD Gothic Neo","Malgun Gothic",sans-serif}
+.topbar{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:var(--panel);border-bottom:1px solid var(--line);flex-wrap:wrap;gap:8px}
+.brand{font-weight:700;font-size:18px}
+.controls select{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:14px;cursor:pointer}
+main{max-width:1100px;margin:0 auto;padding:16px}
+.demo-banner{background:#1d2b1a;border:1px solid var(--go);color:#9be6a8;border-radius:10px;padding:10px 14px;font-size:13px;margin-bottom:14px}
+.verdict{border-radius:16px;padding:22px;margin-bottom:14px;text-align:center;border:1px solid var(--line);background:var(--panel)}
+.verdict.go{background:linear-gradient(135deg,#143d22,#1a212b);border-color:var(--go)}
+.verdict.caution{background:linear-gradient(135deg,#3d3413,#1a212b);border-color:var(--caution)}
+.verdict.nogo{background:linear-gradient(135deg,#3d1715,#1a212b);border-color:var(--nogo)}
+.verdict .big{font-size:40px;font-weight:800;letter-spacing:1px}
+.verdict.go .big{color:var(--go)}.verdict.caution .big{color:var(--caution)}.verdict.nogo .big{color:var(--nogo)}
+.verdict .preset-name{font-size:14px;color:var(--muted);margin-bottom:4px}
+.verdict .reasons{margin-top:8px;font-size:14px;color:var(--muted)}
+.verdict .reasons span{display:inline-block;margin:2px 5px;padding:2px 8px;border-radius:6px;background:var(--panel2)}
+.meta{color:var(--muted);font-size:13px;margin-bottom:14px}
+.widgets{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.widget{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;border-left-width:4px}
+.widget.go{border-left-color:var(--go)}.widget.caution{border-left-color:var(--caution)}.widget.nogo{border-left-color:var(--nogo)}.widget.na{border-left-color:var(--na)}
+.widget .w-head{display:flex;justify-content:space-between;color:var(--muted);font-size:13px}
+.widget .w-val{font-size:26px;font-weight:700;margin-top:6px}
+.widget .w-val .unit{font-size:14px;color:var(--muted);font-weight:400}
+.widget .w-sub{font-size:12px;color:var(--muted);margin-top:2px;min-height:14px}
+.widget .w-src{font-size:11px;color:var(--na);margin-top:6px}
+.section-title{font-size:16px;margin:22px 0 10px;color:var(--muted)}
+.sources{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
+.scard{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px}
+.scard.off{opacity:.55}
+.scard h3{margin:0 0 8px;font-size:15px;display:flex;justify-content:space-between;align-items:center}
+.scard .badge{font-size:11px;padding:2px 7px;border-radius:6px;background:var(--panel2);color:var(--muted)}
+.scard .badge.on{background:#14361f;color:var(--go)}
+.scard .row{display:flex;justify-content:space-between;font-size:13px;padding:3px 0;border-bottom:1px solid var(--line)}
+.scard .row:last-child{border-bottom:none}.scard .row .k{color:var(--muted)}
+.scard .reason{font-size:12px;color:var(--caution)}
+.foot{margin-top:24px;color:var(--na);font-size:12px}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">⛅ Weather Ops <span style="font-size:12px;color:var(--muted)">미리보기</span></div>
+  <div class="controls">
+    <select id="presetSelect"></select>
+    <select id="scenarioSelect" title="예시 상황">
+      <option value="seoul">서울 · 흐림/돌풍</option>
+      <option value="gangneung">강릉 · 강풍/소나기</option>
+      <option value="jeju">제주 · 맑음</option>
+    </select>
+  </div>
+</header>
+<main>
+  <div class="demo-banner">📋 이건 <b>샘플 데이터로 만든 미리보기</b>입니다. 실제 앱은 <code>npm start</code>(포트 8787)로 실행하면 실시간 날씨가 들어옵니다. 위에서 <b>업무 프리셋</b>과 <b>상황</b>을 바꿔보세요.</div>
+  <section id="verdict" class="verdict"></section>
+  <div id="meta" class="meta"></div>
+  <section id="widgets" class="widgets"></section>
+  <h2 class="section-title">출처별 비교</h2>
+  <section id="sources" class="sources"></section>
+  <div class="foot">샘플 미리보기 · 실제 출처: Open-Meteo(무키)/기상청/Google/Apple/네이버</div>
+</main>
+
+<script>
+// ── 지표 ──
+const INDICATORS={
+ wind:{label:'풍속',unit:'m/s',icon:'💨',value:p=>p.windSpeed,sub:p=>p.windDirText?p.windDirText+'풍':null},
+ gust:{label:'돌풍',unit:'m/s',icon:'🌬️',value:p=>p.windGust},
+ precip:{label:'강수확률',unit:'%',icon:'🌧️',value:p=>p.precipProb,sub:p=>p.precipAmount?p.precipAmount+'mm':null},
+ lightning:{label:'낙뢰',unit:'',icon:'⚡',value:p=>p.lightning==null?null:(p.lightning?1:0),fmt:v=>v==null?'—':(v?'있음':'없음')},
+ visibility:{label:'가시거리',unit:'km',icon:'👁️',value:p=>p.visibility},
+ cloud:{label:'구름양',unit:'%',icon:'☁️',value:p=>p.cloudCover,sub:p=>p.sky},
+ ceiling:{label:'운고',unit:'m',icon:'🌫️',value:p=>p.ceiling},
+ temp:{label:'기온',unit:'°C',icon:'🌡️',value:p=>p.temp,sub:p=>p.feelsLike!=null?'체감 '+p.feelsLike+'°':null},
+ feels:{label:'체감온도',unit:'°C',icon:'🥵',value:p=>p.feelsLike??p.temp},
+ humidity:{label:'습도',unit:'%',icon:'💧',value:p=>p.humidity},
+ wave:{label:'파고',unit:'m',icon:'🌊',value:p=>p.wave},
+ daylight:{label:'일출·일몰',unit:'',icon:'🌅',value:()=>null}
+};
+const over=(c,n)=>v=>v==null?'na':v>=n?'nogo':v>=c?'caution':'go';
+const under=(c,n)=>v=>v==null?'na':v<=n?'nogo':v<=c?'caution':'go';
+const bool=()=>v=>v==null?'na':(v?'nogo':'go');
+const band=(ln,lc,hc,hn)=>v=>v==null?'na':(v<=ln||v>=hn?'nogo':(v<=lc||v>=hc?'caution':'go'));
+const PRESETS={
+ drone:{name:'드론 비행',icon:'🚁',widgets:['wind','gust','precip','lightning','visibility','cloud','daylight','temp'],thresholds:{wind:over(8,12),gust:over(10,14),precip:over(40,70),lightning:bool(),visibility:under(5,3),cloud:over(80,95),temp:band(-10,0,35,40)},daylightRule:d=>d===false?'caution':'go'},
+ flighttest:{name:'비행시험',icon:'✈️',widgets:['wind','gust','visibility','ceiling','cloud','precip','daylight','temp'],thresholds:{wind:over(7,11),gust:over(9,13),visibility:under(8,5),ceiling:under(600,300),cloud:over(70,90),precip:over(30,60),temp:band(-15,-5,35,40)},daylightRule:d=>d===false?'caution':'go'},
+ marine:{name:'해상(배)',icon:'🚢',widgets:['wind','gust','wave','visibility','precip','lightning','temp'],thresholds:{wind:over(10,14),gust:over(12,17),wave:over(1.5,3),visibility:under(2,1),precip:over(50,80),lightning:bool(),temp:band(-10,0,33,38)}},
+ field:{name:'현장작업',icon:'🏗️',widgets:['feels','precip','lightning','wind','temp','humidity'],thresholds:{feels:band(-12,-5,33,38),precip:over(50,80),lightning:bool(),wind:over(10,15),temp:band(-12,-5,33,38)}},
+ general:{name:'일반',icon:'🌤️',widgets:['temp','precip','wind','humidity','cloud','daylight'],thresholds:{precip:over(60,90),wind:over(12,18),temp:band(-15,-5,35,40)}}
+};
+const SRC_ORDER=['kma','google','apple','openmeteo','naver'];
+const SRC_LABEL={kma:'기상청',google:'Google',apple:'Apple',openmeteo:'Open-Meteo',naver:'네이버'};
+const WORSE={go:0,caution:1,nogo:2,na:-1};
+const VTEXT={go:'GO',caution:'주의',nogo:'NO-GO',na:'데이터 없음'};
+
+// ── 샘플 시나리오 (출처마다 값이 조금씩 다름) ──
+const SCEN={
+ seoul:{region:'서울',sun:{sunrise:'2026-06-18T05:11',sunset:'2026-06-18T19:56',isDaylight:true},sources:{
+   openmeteo:{label:'Open-Meteo',available:true,current:{temp:24,feelsLike:25,humidity:62,windSpeed:6,windGust:11,windDir:250,windDirText:'서남서',precipProb:35,precipAmount:0,lightning:false,visibility:9,cloudCover:85,sky:'흐림'}},
+   kma:{label:'기상청',available:true,current:{temp:24,humidity:60,windSpeed:6,windDir:250,windDirText:'서남서',precipProb:30,precipAmount:0,precipType:'none',sky:'흐림',lightning:false,wave:0.4}},
+   google:{label:'Google',available:true,current:{temp:25,feelsLike:26,humidity:58,windSpeed:6,windGust:12,windDir:248,windDirText:'서남서',precipProb:40,visibility:8,cloudCover:80,sky:'대체로 흐림'}},
+   apple:{label:'Apple',available:true,current:{temp:24,feelsLike:25,humidity:61,windSpeed:6,windGust:11,windDir:252,windDirText:'서남서',precipProb:33,visibility:9,cloudCover:82,sky:'Cloudy'}},
+   naver:{label:'네이버',available:false,reason:'미리보기(크롤링 비활성)'}
+ }},
+ gangneung:{region:'강릉',sun:{sunrise:'2026-06-18T05:08',sunset:'2026-06-18T19:48',isDaylight:true},sources:{
+   openmeteo:{label:'Open-Meteo',available:true,current:{temp:21,feelsLike:21,humidity:78,windSpeed:11,windGust:16,windDir:45,windDirText:'북동',precipProb:75,precipAmount:3.2,lightning:true,visibility:4,cloudCover:95,sky:'소나기'}},
+   kma:{label:'기상청',available:true,current:{temp:21,humidity:80,windSpeed:12,windDir:40,windDirText:'북동',precipProb:80,precipAmount:3,precipType:'rain',sky:'흐림',lightning:true,wave:2.1}},
+   google:{label:'Google',available:true,current:{temp:21,feelsLike:21,humidity:76,windSpeed:11,windGust:17,windDir:48,windDirText:'북동',precipProb:70,visibility:3,cloudCover:96,sky:'소나기'}},
+   apple:{label:'Apple',available:false,reason:'미리보기(키 미설정)'},
+   naver:{label:'네이버',available:false,reason:'미리보기(크롤링 비활성)'}
+ }},
+ jeju:{region:'제주',sun:{sunrise:'2026-06-18T05:16',sunset:'2026-06-18T19:47',isDaylight:true},sources:{
+   openmeteo:{label:'Open-Meteo',available:true,current:{temp:27,feelsLike:29,humidity:55,windSpeed:4,windGust:7,windDir:180,windDirText:'남',precipProb:5,precipAmount:0,lightning:false,visibility:14,cloudCover:15,sky:'맑음'}},
+   kma:{label:'기상청',available:true,current:{temp:27,humidity:53,windSpeed:4,windDir:175,windDirText:'남',precipProb:0,precipAmount:0,precipType:'none',sky:'맑음',lightning:false,wave:0.6}},
+   google:{label:'Google',available:true,current:{temp:28,feelsLike:30,humidity:52,windSpeed:4,windGust:7,windDir:182,windDirText:'남',precipProb:10,visibility:16,cloudCover:12,sky:'맑음'}},
+   apple:{label:'Apple',available:true,current:{temp:27,feelsLike:29,humidity:54,windSpeed:4,windGust:7,windDir:178,windDirText:'남',precipProb:5,visibility:15,cloudCover:14,sky:'Clear'}},
+   naver:{label:'네이버',available:false,reason:'미리보기(크롤링 비활성)'}
+ }}
+};
+
+function valueFor(data,key){const ind=INDICATORS[key];for(const s of SRC_ORDER){const src=data.sources[s];if(src&&src.available&&src.current){const v=ind.value(src.current);if(v!=null)return{value:v,source:src.label,point:src.current};}}return{value:null,source:null,point:null};}
+function evalVerdict(data,preset){let worst='go';const reasons=[];for(const key of preset.widgets){if(key==='daylight'){if(preset.daylightRule){const st=preset.daylightRule(data.sun.isDaylight);if(st!=='go'&&data.sun.isDaylight===false)reasons.push({label:'일몰 후'});if(WORSE[st]>WORSE[worst])worst=st;}continue;}const{value}=valueFor(data,key);const rule=preset.thresholds[key];const st=rule?rule(value):'na';if(st==='caution'||st==='nogo'){const ind=INDICATORS[key];reasons.push({label:ind.label+' '+(ind.fmt?ind.fmt(value):value+ind.unit)});}if(WORSE[st]>WORSE[worst])worst=st;}return{status:worst,reasons};}
+
+let presetId='drone',scenario='seoul';
+function render(){
+ const data=SCEN[scenario];const preset=PRESETS[presetId];
+ const{status,reasons}=evalVerdict(data,preset);
+ const v=document.getElementById('verdict');v.className='verdict '+status;
+ v.innerHTML='<div class="preset-name">'+preset.icon+' '+preset.name+' · '+data.region+'</div><div class="big">'+VTEXT[status]+'</div><div class="reasons">'+(reasons.length?reasons.map(r=>'<span>'+r.label+'</span>').join(''):'<span>모든 지표 양호</span>')+'</div>';
+ const enabled=SRC_ORDER.filter(s=>data.sources[s]&&data.sources[s].available).map(s=>SRC_LABEL[s]);
+ document.getElementById('meta').innerHTML='활성 출처: '+enabled.join(', ');
+ const wrap=document.getElementById('widgets');wrap.innerHTML='';
+ for(const key of preset.widgets)wrap.appendChild(renderWidget(data,preset,key));
+ renderSources(data);
+}
+function dot(st){const c={go:'var(--go)',caution:'var(--caution)',nogo:'var(--nogo)',na:'var(--na)'}[st];return '<span style="color:'+c+'">●</span>';}
+function renderWidget(data,preset,key){
+ const ind=INDICATORS[key];const el=document.createElement('div');
+ if(key==='daylight'){const sr=data.sun.sunrise.slice(11),ss=data.sun.sunset.slice(11);const st=data.sun.isDaylight===false?'caution':'go';el.className='widget '+st;el.innerHTML='<div class="w-head"><span>'+ind.icon+' '+ind.label+'</span></div><div class="w-val" style="font-size:18px">🌅 '+sr+' / 🌇 '+ss+'</div><div class="w-sub">'+(data.sun.isDaylight===false?'현재 야간':'현재 주간')+'</div>';return el;}
+ const{value,source,point}=valueFor(data,key);const rule=preset.thresholds[key];const st=rule?rule(value):'na';
+ el.className='widget '+st;
+ const disp=value==null?'—':(ind.fmt?ind.fmt(value):value+'<span class="unit"> '+ind.unit+'</span>');
+ const sub=ind.sub&&point?ind.sub(point):null;
+ el.innerHTML='<div class="w-head"><span>'+ind.icon+' '+ind.label+'</span><span>'+dot(st)+'</span></div><div class="w-val">'+disp+'</div><div class="w-sub">'+(sub||'')+'</div><div class="w-src">'+(source?'출처: '+source:'데이터 없음')+'</div>';
+ return el;
+}
+const COMPARE=['temp','wind','gust','precip','humidity','visibility','cloud'];
+function renderSources(data){
+ const wrap=document.getElementById('sources');wrap.innerHTML='';
+ for(const sid of SRC_ORDER){const src=data.sources[sid];if(!src)continue;const card=document.createElement('div');card.className='scard '+(src.available?'':'off');let rows='';
+  if(src.available&&src.current){for(const k of COMPARE){const ind=INDICATORS[k];const val=ind.value(src.current);if(val==null)continue;rows+='<div class="row"><span class="k">'+ind.icon+' '+ind.label+'</span><span>'+val+' '+ind.unit+'</span></div>';}if(!rows)rows='<div class="reason">표시할 값 없음</div>';}
+  else rows='<div class="reason">'+(src.reason||'사용 불가')+'</div>';
+  card.innerHTML='<h3>'+SRC_LABEL[sid]+' <span class="badge '+(src.available?'on':'')+'">'+(src.available?'ON':'OFF')+'</span></h3>'+rows;
+  wrap.appendChild(card);}
+}
+const ps=document.getElementById('presetSelect');
+ps.innerHTML=Object.entries(PRESETS).map(([id,p])=>'<option value="'+id+'">'+p.icon+' '+p.name+'</option>').join('');
+ps.onchange=()=>{presetId=ps.value;render();};
+document.getElementById('scenarioSelect').onchange=e=>{scenario=e.target.value;render();};
+render();
+</script>
+</body>
+</html>

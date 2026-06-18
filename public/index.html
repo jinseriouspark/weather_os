@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Weather Ops — 업무용 날씨 한눈에</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">⛅ Weather Ops</div>
+    <div class="controls">
+      <select id="presetSelect" title="업무 프리셋"></select>
+      <select id="citySelect" title="지역"></select>
+      <button id="geoBtn" title="현재 위치 사용">📍</button>
+      <button id="refreshBtn" title="새로고침">↻</button>
+      <button id="customizeBtn" title="대시보드 편집">⚙️</button>
+      <a href="team.html" class="navlink" title="팀 현황">👥 팀</a>
+    </div>
+  </header>
+
+  <main id="app">
+    <section id="verdict" class="verdict"></section>
+    <div id="meta" class="meta"></div>
+    <section id="widgets" class="widgets"></section>
+    <h2 class="section-title">출처별 비교</h2>
+    <section id="sources" class="sources"></section>
+    <footer class="foot">
+      <span id="updated"></span>
+      <span class="disclaimer">※ Open-Meteo는 키 없이 동작. 기상청·Google·Apple은 키 설정 시, 네이버는 크롤링(불안정·약관 유의)으로 표시됩니다.</span>
+    </footer>
+  </main>
+
+  <!-- 온보딩 / 커스터마이즈 모달 -->
+  <div id="modal" class="modal hidden">
+    <div class="modal-card">
+      <div id="modalBody"></div>
+    </div>
+  </div>
+
+  <script src="presets.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

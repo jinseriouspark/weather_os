@@ -1,0 +1,23 @@
+{
+  "name": "weather-ops",
+  "version": "1.0.0",
+  "description": "업무용 날씨 통합 대시보드 — 여러 출처를 모아 작업 가능 여부를 한눈에",
+  "type": "module",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cheerio": "^1.0.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-session": "^1.18.0",
+    "jsonwebtoken": "^9.0.2"
+  },
+  "license": "MIT"
+}

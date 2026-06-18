@@ -1,0 +1,29 @@
+# Render.com 배포 블루프린트 (standalone 레포 루트 레이아웃).
+# 사용법: Render → New → Blueprint → 이 저장소 연결.
+services:
+  - type: web
+    name: weather-ops
+    runtime: node
+    plan: free
+    branch: main
+    buildCommand: npm install
+    startCommand: node server/index.js
+    healthCheckPath: /api/sources
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SESSION_SECRET
+        generateValue: true
+      # 아래 키는 Render 대시보드에서 직접 입력(미설정 시 해당 출처만 "키 필요"로 비활성)
+      - key: KMA_SERVICE_KEY
+        sync: false
+      - key: GOOGLE_WEATHER_KEY
+        sync: false
+      - key: APPLE_TEAM_ID
+        sync: false
+      - key: APPLE_KEY_ID
+        sync: false
+      - key: APPLE_SERVICE_ID
+        sync: false
+      - key: APPLE_PRIVATE_KEY
+        sync: false
