@@ -2,13 +2,14 @@
 import { config } from './config.js';
 import { fetchOpenMeteo } from './sources/openmeteo.js';
 import { fetchKma } from './sources/kma.js';
+import { fetchKmaMetar } from './sources/kma_metar.js';
 import { fetchGoogle } from './sources/google.js';
 import { fetchApple } from './sources/apple.js';
 import { fetchNaver } from './sources/naver.js';
 import { sunTimes, isDaylight } from './util/sun.js';
 import { unavailable } from './util/normalize.js';
 
-const ALL = ['openmeteo', 'kma', 'google', 'apple', 'naver'];
+const ALL = ['openmeteo', 'kma', 'kma_metar', 'google', 'apple', 'naver'];
 
 export async function aggregate({ lat, lon, region, sources }) {
   const want = sources && sources.length ? sources : ALL;
@@ -17,6 +18,7 @@ export async function aggregate({ lat, lon, region, sources }) {
   const tasks = {
     openmeteo: () => fetchOpenMeteo(lat, lon),
     kma: () => fetchKma(lat, lon, config.kmaKey),
+    kma_metar: () => fetchKmaMetar(lat, lon, config.metarKey, config.metarUrl),
     google: () => fetchGoogle(lat, lon, config.googleKey),
     apple: () => fetchApple(lat, lon, config.apple),
     naver: () => fetchNaver(region, config.naverEnabled),

@@ -23,6 +23,7 @@ npm start              # http://localhost:8787  (PORT 환경변수로 변경 가
 |------|-----------|------|
 | **Open-Meteo** | 없음 | 항상 동작. 기본 백본 |
 | **기상청** | `KMA_SERVICE_KEY` (무료) | [data.go.kr 단기예보](https://www.data.go.kr/data/15084084/openapi.do) 활용신청. 브라우저 직접호출 CORS 차단 → 서버 프록시로 해결. 가시거리/운고/돌풍 미제공 |
+| **METAR(공항)** | `KMA_METAR_KEY` (무료) | [KMA API허브](https://apihub.kma.go.kr) authKey. **가장 가까운 공항 ICAO 실측**으로 단기예보가 못 주는 **가시거리·운고·돌풍**을 보완(비행/드론용). 표준 METAR 원문을 파싱 — IWXXM 구조화 XML은 원문이 없어 미지원이니 원문 제공 엔드포인트를 쓰거나 `KMA_METAR_URL` 로 지정 |
 | **Google** | `GOOGLE_WEATHER_KEY` | Google Maps Platform Weather API (월 1만콜 무료) |
 | **Apple** | `APPLE_TEAM_ID/KEY_ID/SERVICE_ID/PRIVATE_KEY` | Apple Developer 계정 필요. 서버에서 ES256 JWT 서명 |
 | **네이버** | 없음(크롤링) | ⚠️ 공식 API 없음 → weather.naver.com 파싱. 구조 변경 시 깨질 수 있고 약관상 회색지대. `NAVER_CRAWL_ENABLED=0` 로 끌 수 있음 |
@@ -72,8 +73,9 @@ server/
   store.js        팀/계정/위치 JSON 영속 저장소 (데모용)
   auth.js         가입/로그인/세션/계정삭제 + requireAuth
   team.js         팀 생성·참여·동의 기반 위치 공유·팀 현황
-  sources/        openmeteo, kma, google, apple, naver 어댑터
-  util/           grid(격자변환), sun(일출일몰), normalize(공통모델)
+  metrics.js      사용량 로그/집계 (쿼리·가입 건수, 비식별)
+  sources/        openmeteo, kma, kma_metar(공항METAR), google, apple, naver 어댑터
+  util/           grid(격자변환), sun(일출일몰), normalize(공통모델), metar(원문파서·공항선택)
 public/
   index.html, app.js        대시보드
   team.html, team.js        팀 현황(로그인·위치 공유)
@@ -87,7 +89,19 @@ Dockerfile, render.yaml     배포용
 - `GET /api/weather?lat=&lon=&region=&sources=` → 정규화된 통합 날씨 JSON
 - `POST /api/auth/{register,login,logout}` · `GET /api/auth/me` · `DELETE /api/auth/me`
 - `GET/POST /api/team` · `POST /api/team/join` · `POST/DELETE /api/team/location` · `GET /api/team/status` (모두 로그인·같은 팀 스코프)
+- `GET /api/stats` → 사용량 통계(쿼리·가입·로그인 건수, 최근 7일). `STATS_TOKEN` 설정 시 `?token=` 필요
+
+## 사용량 통계 (몇 건의 쿼리·가입이 들어오는지)
+서버가 요청을 받을 때마다 **비식별 이벤트**를 `metrics.log`(JSONL)에 남기고 집계한다.
+- 기록 이벤트: `weather_query`(날씨 조회), `register`(가입), `login`(로그인)
+- **프라이버시**: IP·정밀좌표·개인정보는 저장하지 않음. 조회는 지역명 + 약 1km로 라운딩한 좌표만.
+- 보기: `GET /api/stats` (JSON). 운영에서 공개를 막으려면 `STATS_TOKEN` 설정 후 `?token=<값>`.
+- 원본 로그: `metrics.log` 줄단위 JSON — `wc -l metrics.log` 로 총 건수, `grep '"register"' metrics.log | wc -l` 로 가입 수 등 즉석 집계 가능.
+
+```bash
+curl -s localhost:8787/api/stats | jq      # 예: { weatherQueries, registrations, logins, last7days }
+```
 
 ## 주의
 - 네이버 크롤링은 사이트 구조 변경에 취약하고 약관상 회색지대입니다. 운영 환경에서는 비활성화를 권장합니다.
-- 기상청 단기예보는 가시거리/운고/돌풍을 제공하지 않아 해당 값은 다른 출처(Open-Meteo/Google/Apple)로 보완 표시됩니다.
+- 기상청 단기예보는 가시거리/운고/돌풍을 제공하지 않아 해당 값은 다른 출처(METAR·Open-Meteo/Google/Apple)로 보완 표시됩니다. METAR는 공항 실측이라 위치가 공항과 멀면 참고용으로 보세요(카드에 공항·거리 표시).

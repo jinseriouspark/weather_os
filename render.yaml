@@ -17,6 +17,8 @@ services:
       # 아래 키는 Render 대시보드에서 직접 입력(미설정 시 해당 출처만 "키 필요"로 비활성)
       - key: KMA_SERVICE_KEY
         sync: false
+      - key: KMA_METAR_KEY
+        sync: false
       - key: GOOGLE_WEATHER_KEY
         sync: false
       - key: APPLE_TEAM_ID
@@ -26,4 +28,7 @@ services:
       - key: APPLE_SERVICE_ID
         sync: false
       - key: APPLE_PRIVATE_KEY
+        sync: false
+      # 사용량 통계(/api/stats) 보호 토큰 (미설정 시 공개)
+      - key: STATS_TOKEN
         sync: false
