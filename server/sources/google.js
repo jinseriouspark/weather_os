@@ -48,6 +48,11 @@ export async function fetchGoogle(lat, lon, key) {
       fetch(`${BASE}/currentConditions:lookup?key=${key}&${loc}&unitsSystem=METRIC&languageCode=ko`),
       fetch(`${BASE}/forecast/hours:lookup?key=${key}&${loc}&unitsSystem=METRIC&languageCode=ko&hours=24`),
     ]);
+    // Google Weather API는 미지원 지역(예: 한국 상당 지역)에 404 NOT_FOUND 를 준다.
+    // 이 경우 에러 대신 카드를 조용히 숨긴다(다른 출처가 커버). 커버리지 확대 시 자동 복귀.
+    if (curRes.status === 404) {
+      return { ...unavailable(LABEL, '이 지역 미지원'), hidden: true };
+    }
     if (!curRes.ok) throw new Error(`current HTTP ${curRes.status}`);
     const cur = await curRes.json();
     const current = mapPoint(cur);
