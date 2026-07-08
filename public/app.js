@@ -62,12 +62,17 @@ function render() {
   const preset = activePreset();
   const { status, reasons } = evalVerdict(data, preset);
 
-  // 종합 배지
+  // 종합 배지 — Apple Weather 스타일 히어로 (지역 → 큰 온도 → 하늘상태 → 판정)
+  const tp = valueFor(data, 'temp');
+  const temp = tp.value != null ? `${Math.round(tp.value)}°` : '—';
+  const cond = tp.point?.sky || '';
   const v = document.getElementById('verdict');
   v.className = `verdict ${status}`;
   v.innerHTML = `
-    <div class="preset-name">${preset.icon} ${preset.name} · ${data.location.region || state.city}</div>
-    <div class="big">${VERDICT_TEXT[status]}</div>
+    <div class="v-place">${preset.icon}<span>${preset.name} · ${data.location.region || state.city}</span></div>
+    <div class="v-temp">${temp}</div>
+    <div class="v-cond">${cond}</div>
+    <div class="v-badge ${status}"><span class="v-dot"></span>${VERDICT_TEXT[status]}</div>
     <div class="reasons">${
       reasons.length
         ? reasons.map((r) => `<span>${r.label}</span>`).join('')
@@ -134,37 +139,47 @@ function statusDot(st) {
   return `<span style="color:${c}">●</span>`;
 }
 
-// ── 앰비언트 배경: 날씨 상태 + 풍속에 따라 페이지 그라데이션 색을 바꾼다 ──
-function setAmbient(data) {
-  const { point } = valueFor(data, 'temp'); // 대표 출처의 현재 시점
-  const wind = valueFor(data, 'wind').value ?? 0;
-  const night = data.sun?.isDaylight === false;
+// ── 앰비언트 하늘: 날씨 상태 + 시간대 + 풍속으로 전체 배경 그라데이션을 만든다 ──
+// Apple Weather 처럼 "하늘 자체가 배경"이 되도록 3스톱 수직 그라데이션 + 상단 광원.
+const SKIES = {
+  clearDay:   ['#1e6fc4', '#3f97e0', '#8ec8f2'],
+  clearNight: ['#070d24', '#111c40', '#26325a'],
+  cloudDay:   ['#3f5876', '#5b7492', '#8ba1b6'],
+  cloudNight: ['#1a2230', '#28323f', '#3d4a5c'],
+  rainDay:    ['#26364e', '#375170', '#54708f'],
+  rainNight:  ['#0f1626', '#1d2b40', '#324862'],
+  snowDay:    ['#5a6d86', '#8091a8', '#b9c6d6'],
+  snowNight:  ['#232d3d', '#37445a', '#54637a'],
+  fog:        ['#4c5560', '#6a7480', '#98a2ad'],
+  thunder:    ['#211d38', '#372f56', '#4a3f6e'],
+};
+function classifySky(point, night) {
   const sky = point?.sky || '';
   const pt = point?.precipType;
+  const cloud = point?.cloudCover ?? 0;
+  if (point?.lightning || /뇌우/.test(sky)) return 'thunder';
+  if (pt === 'snow' || /눈/.test(sky)) return night ? 'snowNight' : 'snowDay';
+  if (pt === 'rain' || pt === 'sleet' || /비|소나기/.test(sky)) return night ? 'rainNight' : 'rainDay';
+  if (/안개|박무|연무/.test(sky)) return 'fog';
+  if (cloud >= 60 || /흐림|구름많음/.test(sky)) return night ? 'cloudNight' : 'cloudDay';
+  return night ? 'clearNight' : 'clearDay';
+}
+function setAmbient(data) {
+  const { point } = valueFor(data, 'temp');
+  const wind = valueFor(data, 'wind').value ?? 0;
+  const night = data.sun?.isDaylight === false;
+  const [top, mid, bot] = SKIES[classifySky(point, night)];
 
-  // 풍속이 셀수록 하늘색이 짙고 넓게 번진다 (0m/s→0.30, 14m/s+→0.62)
-  const a = Math.min(0.62, 0.3 + wind * 0.023);
-  const a2 = Math.min(0.5, 0.22 + wind * 0.02);
+  // 하늘 그라데이션(위→아래) + 상단 광원(해/달 위치 느낌)
+  const sunX = night ? 78 : 26;
+  const glow = night ? 'rgba(255,255,255,0.10)' : 'rgba(255,255,255,0.28)';
+  document.body.style.setProperty('--sky',
+    `radial-gradient(120% 80% at ${sunX}% -8%, ${glow} 0%, transparent 42%),` +
+    `linear-gradient(180deg, ${top} 0%, ${mid} 52%, ${bot} 100%)`);
 
-  let c1, c2;
-  if (point?.lightning || /뇌우/.test(sky)) {
-    c1 = `rgba(124, 58, 237, ${a})`; c2 = `rgba(49, 27, 92, ${a2})`; // 보라(뇌우)
-  } else if (pt === 'snow' || /눈/.test(sky)) {
-    c1 = `rgba(148, 187, 233, ${a * 0.8})`; c2 = `rgba(84, 105, 132, ${a2})`; // 차가운 은청색
-  } else if (pt === 'rain' || pt === 'sleet' || /비|소나기/.test(sky)) {
-    c1 = `rgba(30, 90, 168, ${a})`; c2 = `rgba(14, 50, 74, ${a2})`; // 짙은 비구름 블루
-  } else if (/안개|박무|연무/.test(sky)) {
-    c1 = `rgba(100, 116, 139, ${a * 0.9})`; c2 = `rgba(60, 72, 88, ${a2})`; // 잿빛
-  } else if ((point?.cloudCover ?? 0) >= 70 || /흐림|구름많음/.test(sky)) {
-    c1 = night ? `rgba(51, 65, 92, ${a})` : `rgba(72, 96, 128, ${a})`;
-    c2 = `rgba(30, 41, 59, ${a2})`; // 회청(흐림)
-  } else if (night) {
-    c1 = `rgba(67, 56, 158, ${a * 0.85})`; c2 = `rgba(17, 24, 56, ${a2})`; // 밤하늘 인디고
-  } else {
-    c1 = `rgba(52, 138, 235, ${a})`; c2 = `rgba(240, 177, 90, ${Math.min(0.22, a2 * 0.55)})`; // 맑은 낮: 하늘색 + 은은한 햇살
-  }
-  document.body.style.setProperty('--sky1', c1);
-  document.body.style.setProperty('--sky2', c2);
+  // 바람이 셀수록 카드 위로 흐르는 미세한 결(streak)을 강하게
+  const streak = Math.min(0.10, wind * 0.008);
+  document.body.style.setProperty('--wind-streak', streak.toFixed(3));
 }
 
 const SOURCE_LABELS = { openmeteo: 'Open-Meteo', kma: '기상청', kma_metar: 'METAR(공항)', google: 'Google', apple: 'Apple', naver: '네이버' };
