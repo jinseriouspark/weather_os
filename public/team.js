@@ -191,3 +191,8 @@ $('deleteAcct').onclick = async () => {
 window.addEventListener('beforeunload', () => { if (state.watchId != null) stopSharing(false); });
 
 boot();
+
+// PWA 서비스워커 (미지원 브라우저에선 조용히 생략)
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}

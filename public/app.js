@@ -329,3 +329,8 @@ if (!localStorage.getItem(LS.onboarded)) {
   showOnboarding();
 }
 load();
+
+// PWA 서비스워커 (file:// 데모나 미지원 브라우저에선 조용히 생략)
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
