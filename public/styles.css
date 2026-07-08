@@ -78,13 +78,29 @@ main { max-width: 1080px; margin: 0 auto; padding: 0; }
 
 /* ── 위치+바람 지도: 화면 고정 배경 (내용이 그 위로 스크롤) ── */
 .hero-map { position: fixed; top: 0; left: 0; right: 0; height: 100vh; z-index: 0; background: #0a0f17; overflow: hidden; }
-/* 지도를 어둡게 눌러 은은한 '바람 배경'으로 + 자체 UI(로고·줌·스케일)를 살짝 넘겨 가림 */
+/* 지도는 '선명한 바람 지도'로 유지 — 자체 UI(로고·줌·스케일)만 살짝 넘겨 가림 */
 .hero-map iframe { position: absolute; left: -3%; top: -6%; width: 106%; height: 116%; border: 0; pointer-events: none;
-  filter: brightness(0.52) saturate(1.15) contrast(1.02); }
+  filter: saturate(1.12) contrast(1.02); }
+/* 스크림 = '회색 그림자 모드'. 최초 화면에선 지도를 눌러 글자를 읽히게 하고,
+   스크롤하면 opacity가 JS로 0까지 걷히며 진짜 바람 지도가 드러난다. */
 .hero-scrim { position: fixed; top: 0; left: 0; right: 0; height: 100vh; z-index: 0; pointer-events: none;
+  opacity: 1; will-change: opacity;
   background:
-    radial-gradient(120% 55% at 50% 62%, rgba(4,8,14,0.55) 0%, transparent 62%),
-    linear-gradient(180deg, rgba(4,8,14,0.45) 0%, rgba(4,8,14,0.25) 40%, rgba(4,8,14,0.6) 100%); }
+    radial-gradient(120% 60% at 50% 58%, rgba(4,8,14,0.72) 0%, rgba(4,8,14,0.4) 55%, transparent 78%),
+    linear-gradient(180deg, rgba(4,8,14,0.6) 0%, rgba(4,8,14,0.35) 42%, rgba(4,8,14,0.72) 100%); }
+
+/* 히어로 글자가 밀려 올라간 뒤 처음 보이는 '깨끗한 바람 지도' 구간 (고정 지도가 그대로 비침) */
+.map-reveal { position: relative; z-index: 1; height: 82vh; pointer-events: none; }
+.map-reveal-label { position: absolute; left: 16px; top: 16px; font-size: 12px; font-weight: 700;
+  letter-spacing: 0.02em; color: rgba(255,255,255,0.9); padding: 5px 10px; border-radius: 999px;
+  background: rgba(8,12,20,0.42); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  border: 1px solid rgba(255,255,255,0.14); }
+
+/* 바람 지도 배경 OFF: 고정 지도·스크림·리빌 제거하고 히어로를 일반 어두운 패널로 */
+body.no-heromap .hero-map, body.no-heromap .hero-scrim, body.no-heromap .map-reveal { display: none; }
+body.no-heromap #hero { min-height: auto; background: linear-gradient(180deg, #0a0f17 0%, #0e1622 100%); }
+body.no-heromap .hero-body .v-badge, body.no-heromap .hero-body .reasons span,
+body.no-heromap #hero .warn-chip { text-shadow: none; }
 
 /* 히어로: 고정 지도를 향한 '투명 창' — 글자만 오버레이, 스크롤 시 압축돼 위로 */
 #hero {

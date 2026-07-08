@@ -167,6 +167,7 @@ function render() {
   renderWindLead(data, preset);
 
   // 히어로 배경 지도(위치+바람)
+  applyHeroMap();
   renderHeroMap();
 
   // 상단 접힘 타이틀(스크롤 시): 지역 · 온도
@@ -404,8 +405,14 @@ function renderWindLead(data, preset) {
     </div>`;
 }
 
+// 바람 지도 배경 on/off — 섹션 토글('heromap')에 연동
+function applyHeroMap() {
+  document.body.classList.toggle('no-heromap', hiddenSections().has('heromap'));
+}
+
 // ── 히어로 배경 지도 (Windy 임베드, 위치+바람) — 시각 배경(비상호작용) ──
 function renderHeroMap() {
+  if (hiddenSections().has('heromap')) return;
   const el = document.getElementById('hero-map');
   if (!el || state.lat == null) return;
   const key = `${state.lat.toFixed(2)},${state.lon.toFixed(2)}`;
@@ -430,6 +437,12 @@ function onHeroScroll() {
   if (body) {
     body.style.transform = `translateY(${(-p * 34).toFixed(1)}px) scale(${(1 - p * 0.22).toFixed(3)})`;
     body.style.opacity = (1 - p * 0.9).toFixed(3);
+  }
+  // 그림자 모드(스크림)를 스크롤에 따라 걷어 진짜 바람 지도가 드러나게 함
+  const scrim = document.querySelector('.hero-scrim');
+  if (scrim) {
+    const sp = Math.max(0, Math.min(1, window.scrollY / (window.innerHeight * 0.72)));
+    scrim.style.opacity = (1 - sp).toFixed(3);
   }
   document.body.classList.toggle('scrolled', p > 0.45);
 }
@@ -597,7 +610,7 @@ function showCustomize() {
     </div>`).join('');
   // 섹션 토글 (전역)
   const hideSec = hiddenSections();
-  const SECTIONS = [['sources', '출처별 비교'], ['weekly', '주간 예보']];
+  const SECTIONS = [['heromap', '바람 지도 배경'], ['sources', '출처별 비교'], ['weekly', '주간 예보']];
   const secRows = SECTIONS.map(([k, l]) => `<div class="cust-row">
       <input type="checkbox" data-sec="${k}" ${hideSec.has(k) ? '' : 'checked'} />
       <label>${l}</label>
