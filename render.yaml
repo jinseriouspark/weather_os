@@ -29,6 +29,9 @@ services:
         sync: false
       - key: OWM_KEY
         sync: false
+      # 케이웨더(다음) API 키 (선택, 미설정 시 OFF)
+      - key: KWEATHER_KEY
+        sync: false
       # 사용량 통계(/api/stats) 보호 토큰 (미설정 시 공개)
       - key: STATS_TOKEN
         sync: false
