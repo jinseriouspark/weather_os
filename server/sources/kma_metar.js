@@ -31,10 +31,12 @@ export async function fetchKmaMetar(lat, lon, key, urlTemplate) {
     const res = await fetch(buildUrl(urlTemplate, ap.icao, key));
     const body = await res.text();
 
-    // apihub는 오류도 200/403 본문에 한글 메시지로 준다 → 그대로 사유로 노출
-    const apiMsg = /<message>([^<]+)<\/message>/.exec(body)?.[1];
+    // apihub는 오류를 XML(<message>) 또는 JSON("message")로 준다 → 둘 다 잡아 사유 노출
+    const apiMsg =
+      /<message>([^<]+)<\/message>/.exec(body)?.[1] ||
+      /"message"\s*:\s*"([^"]+)"/.exec(body)?.[1];
     if (apiMsg && !/normal/i.test(apiMsg)) {
-      throw new Error(apiMsg.includes('활용신청') ? '활용신청 필요 (apihub에서 METAR API 신청)' : apiMsg);
+      throw new Error(apiMsg.includes('활용신청') ? '활용신청 필요 (apihub에서 이 METAR API 신청·승인)' : apiMsg);
     }
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
