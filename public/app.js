@@ -413,8 +413,8 @@ function renderHeroMap() {
   el.dataset.key = key;
   const q = new URLSearchParams({
     lat: state.lat, lon: state.lon, detailLat: state.lat, detailLon: state.lon,
-    zoom: '8', level: 'surface', overlay: 'wind', product: 'ecmwf',
-    menu: '', message: '', marker: 'true', calendar: 'now', pressure: 'true',
+    zoom: '7', level: 'surface', overlay: 'wind', product: 'ecmwf',
+    menu: '', message: '', marker: '', calendar: '', pressure: '',
     type: 'map', location: 'coordinates', metricWind: 'm/s', metricTemp: '°C', radarRange: '-1',
   });
   el.innerHTML = `<iframe title="위치·바람 지도" src="https://embed.windy.com/embed2.html?${q}" loading="lazy" referrerpolicy="no-referrer"></iframe>`;

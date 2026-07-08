@@ -77,10 +77,14 @@ main { max-width: 1080px; margin: 0 auto; padding: 0; }
 .sheet > .section-title:first-child { margin-top: 6px; }
 
 /* ── 위치+바람 지도: 화면 고정 배경 (내용이 그 위로 스크롤) ── */
-.hero-map { position: fixed; top: 0; left: 0; right: 0; height: 100vh; z-index: 0; background: #0a0f17; }
-.hero-map iframe { width: 100%; height: 100%; border: 0; pointer-events: none; } /* 배경(비상호작용) */
+.hero-map { position: fixed; top: 0; left: 0; right: 0; height: 100vh; z-index: 0; background: #0a0f17; overflow: hidden; }
+/* 지도를 어둡게 눌러 은은한 '바람 배경'으로 + 자체 UI(로고·줌·스케일)를 살짝 넘겨 가림 */
+.hero-map iframe { position: absolute; left: -3%; top: -6%; width: 106%; height: 116%; border: 0; pointer-events: none;
+  filter: brightness(0.52) saturate(1.15) contrast(1.02); }
 .hero-scrim { position: fixed; top: 0; left: 0; right: 0; height: 100vh; z-index: 0; pointer-events: none;
-  background: linear-gradient(180deg, transparent 0%, transparent 50%, rgba(4,8,14,0.35) 100%); }
+  background:
+    radial-gradient(120% 55% at 50% 62%, rgba(4,8,14,0.55) 0%, transparent 62%),
+    linear-gradient(180deg, rgba(4,8,14,0.45) 0%, rgba(4,8,14,0.25) 40%, rgba(4,8,14,0.6) 100%); }
 
 /* 히어로: 고정 지도를 향한 '투명 창' — 글자만 오버레이, 스크롤 시 압축돼 위로 */
 #hero {
