@@ -79,7 +79,8 @@ const state = {
   presetId: localStorage.getItem(LS.preset) || 'drone',
   city: localStorage.getItem(LS.city) || '서울',
   colorBy: localStorage.getItem('wx.colorby') || 'worst', // 출처 박스 색 기준
-  coords: null, // {lat, lon, region}
+  theme: localStorage.getItem('wx.theme') || 'soft',      // 'soft'(감성) | 'rugged'(현장)
+  coords: null, // {lat, lon, region, kmaRegion}
   data: null,
 };
 
@@ -404,35 +405,36 @@ async function load() {
   const city = CITIES.find((c) => c.name === state.city) || CITIES[0];
   const lat = state.coords?.lat ?? city.lat;
   const lon = state.coords?.lon ?? city.lon;
-  const region = state.coords?.region ?? city.name;
+  const dispRegion = state.coords?.region ?? city.name;        // 화면 표시용(읍면동 등)
+  const kmaRegion = state.coords?.kmaRegion ?? city.name;      // 기상청 특보/중기 매핑용(대표 도시)
 
   // 1) 캐시(지난 응답) 즉시 표시 → 기다림 없이 바로 화면. 없으면 스켈레톤.
   let cached = state.data && !state.isDemo ? state.data : null;
   if (!cached) {
-    try { cached = JSON.parse(localStorage.getItem(LS.lastData(region))); } catch { cached = null; }
+    try { cached = JSON.parse(localStorage.getItem(LS.lastData(dispRegion))); } catch { cached = null; }
   }
   if (cached) {
     state.data = cached; state.isDemo = false;
-    cached.location = cached.location || {}; cached.location.region = region;
+    cached.location = cached.location || {}; cached.location.region = dispRegion;
     render();
   } else {
-    showSkeleton(region);
+    showSkeleton(dispRegion);
   }
 
   // 2) 뒤에서 최신 데이터 갱신 (화면은 막지 않음)
   document.body.classList.add('loading');
   try {
-    const res = await fetch(`/api/weather?lat=${lat}&lon=${lon}&region=${encodeURIComponent(region)}`);
+    const res = await fetch(`/api/weather?lat=${lat}&lon=${lon}&region=${encodeURIComponent(kmaRegion)}`);
     const fresh = await res.json();
     if (fresh.error) throw new Error(fresh.error);
-    fresh.location = fresh.location || {}; fresh.location.region = region;
+    fresh.location = fresh.location || {}; fresh.location.region = dispRegion;
     state.data = fresh; state.isDemo = false;
-    try { localStorage.setItem(LS.lastData(region), JSON.stringify(fresh)); } catch { /* 용량 초과 무시 */ }
+    try { localStorage.setItem(LS.lastData(dispRegion), JSON.stringify(fresh)); } catch { /* 용량 초과 무시 */ }
     render();
   } catch (e) {
     // 백엔드 미연결이고 보여줄 캐시도 없으면 데모로 폴백
     if (!state.data || state.isDemo) {
-      state.data = demoData(region); state.isDemo = true; render();
+      state.data = demoData(dispRegion); state.isDemo = true; render();
     }
   } finally {
     document.body.classList.remove('loading');
@@ -600,18 +602,50 @@ function initControls() {
 
   document.getElementById('geoBtn').onclick = () => {
     if (!navigator.geolocation) return alert('이 브라우저는 위치를 지원하지 않습니다.');
+    const btn = document.getElementById('geoBtn');
+    btn.classList.add('busy');
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const near = nearestCity(pos.coords.latitude, pos.coords.longitude);
-        state.coords = { lat: pos.coords.latitude, lon: pos.coords.longitude, region: near.name };
+      async (pos) => {
+        const lat = pos.coords.latitude, lon = pos.coords.longitude;
+        const near = nearestCity(lat, lon);
+        const display = await reverseGeocode(lat, lon).catch(() => null) || near.name;
+        // 정밀 좌표로 날씨 조회, 표시는 읍면동, 기상청 특보/중기는 대표 도시로 매핑
+        state.coords = { lat, lon, region: display, kmaRegion: near.name };
+        btn.classList.remove('busy');
         load();
       },
-      () => alert('위치를 가져오지 못했습니다.')
+      () => { btn.classList.remove('busy'); alert('위치를 가져오지 못했습니다.'); },
+      { enableHighAccuracy: true, timeout: 10000 }
     );
   };
   document.getElementById('refreshBtn').onclick = load;
   document.getElementById('customizeBtn').onclick = showCustomize;
+  const tb = document.getElementById('themeBtn');
+  if (tb) tb.onclick = () => {
+    state.theme = state.theme === 'soft' ? 'rugged' : 'soft';
+    localStorage.setItem('wx.theme', state.theme);
+    applyTheme();
+  };
   document.getElementById('modal').onclick = (e) => { if (e.target.id === 'modal') closeModal(); };
+}
+
+// 좌표 → 읍면동 이름 (OpenStreetMap Nominatim 역지오코딩, 무료·무키)
+async function reverseGeocode(lat, lon) {
+  const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}&accept-language=ko&zoom=14`;
+  const res = await fetch(url, { headers: { Accept: 'application/json' } });
+  if (!res.ok) return null;
+  const a = (await res.json()).address || {};
+  const gu = a.city || a.county || a.town || a.borough || a.province || '';
+  const dong = a.suburb || a.quarter || a.neighbourhood || a.city_district || a.village || a.town || '';
+  const name = [gu, dong].filter(Boolean).join(' ').trim();
+  return name || null;
+}
+
+// 테마 적용 (감성 ↔ 현장)
+function applyTheme() {
+  document.body.classList.toggle('rugged', state.theme === 'rugged');
+  const b = document.getElementById('themeBtn');
+  if (b) b.textContent = state.theme === 'rugged' ? '현장' : '감성';
 }
 
 function nearestCity(lat, lon) {
@@ -624,6 +658,7 @@ function nearestCity(lat, lon) {
 }
 
 // ── 시작 ──
+applyTheme();
 initControls();
 if (!localStorage.getItem(LS.onboarded)) {
   showOnboarding();
