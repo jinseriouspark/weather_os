@@ -417,8 +417,10 @@ function applyHeroMap() {
   document.body.classList.toggle('no-heromap', hiddenSections().has('heromap'));
 }
 
-// 바람 지도 줌 레벨(시·군·구 상세도). +/− 버튼으로 조절 → Windy를 더 깊은 줌으로 재로드.
-let heroZoom = 8;
+// 바람 지도 줌 레벨(시·군·구·동 상세도). 인식한 위치가 동 단위이므로 지도도 동 스케일로 시작.
+// +/− 버튼으로 조절 → Windy를 해당 줌으로 재로드. 위치가 바뀌면 기본값으로 리셋.
+const HERO_ZOOM_DEFAULT = 11; // 동/구 스케일
+let heroZoom = HERO_ZOOM_DEFAULT;
 
 // ── 히어로 배경 지도 (Windy 임베드, 위치+바람) — 시각 배경(비상호작용) ──
 function renderHeroMap() {
@@ -526,6 +528,7 @@ async function load(via = 'city') {
   const dispRegion = state.coords?.region ?? city.name;        // 화면 표시용(읍면동 등)
   const kmaRegion = state.coords?.kmaRegion ?? city.name;      // 기상청 특보/중기 매핑용(대표 도시)
   state.lat = lat; state.lon = lon;                            // 바람 지도 등에서 사용
+  if (via !== 'refresh') heroZoom = HERO_ZOOM_DEFAULT;         // 위치 변경 시 동 스케일로 리셋
 
   // 1) 캐시(지난 응답) 즉시 표시 → 기다림 없이 바로 화면. 없으면 스켈레톤.
   let cached = state.data && !state.isDemo ? state.data : null;
