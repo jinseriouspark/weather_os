@@ -163,6 +163,9 @@ function render() {
   // 출처 비교
   renderSources(data);
 
+  // 바람 지도(Windy)
+  renderWindMap();
+
   // 주간 예보(중기)
   renderWeekly(data);
 
@@ -354,6 +357,25 @@ function renderSources(data) {
   }
 }
 
+// ── 바람 지도 (Windy 임베드, 키 불필요) ──
+function renderWindMap() {
+  const wrap = document.getElementById('windmap-wrap');
+  const el = document.getElementById('windmap');
+  if (!wrap || !el) return;
+  if (hiddenSections().has('windmap') || state.lat == null) { wrap.classList.add('hidden'); return; }
+  wrap.classList.remove('hidden');
+  const key = `${state.lat.toFixed(2)},${state.lon.toFixed(2)}`;
+  if (el.dataset.key === key) return; // 같은 위치면 iframe 재로드 안 함(깜빡임 방지)
+  el.dataset.key = key;
+  const q = new URLSearchParams({
+    lat: state.lat, lon: state.lon, detailLat: state.lat, detailLon: state.lon,
+    zoom: '8', level: 'surface', overlay: 'wind', product: 'ecmwf',
+    menu: '', message: '', marker: 'true', calendar: 'now', pressure: 'true',
+    type: 'map', location: 'coordinates', metricWind: 'm/s', metricTemp: '°C', radarRange: '-1',
+  });
+  el.innerHTML = `<iframe title="바람 지도" src="https://embed.windy.com/embed2.html?${q}" loading="lazy" referrerpolicy="no-referrer"></iframe>`;
+}
+
 // ── 주간 예보(중기) 렌더 ──
 const WEEKDAY = ['일', '월', '화', '수', '목', '금', '토'];
 function renderWeekly(data) {
@@ -407,6 +429,7 @@ async function load() {
   const lon = state.coords?.lon ?? city.lon;
   const dispRegion = state.coords?.region ?? city.name;        // 화면 표시용(읍면동 등)
   const kmaRegion = state.coords?.kmaRegion ?? city.name;      // 기상청 특보/중기 매핑용(대표 도시)
+  state.lat = lat; state.lon = lon;                            // 바람 지도 등에서 사용
 
   // 1) 캐시(지난 응답) 즉시 표시 → 기다림 없이 바로 화면. 없으면 스켈레톤.
   let cached = state.data && !state.isDemo ? state.data : null;
@@ -516,7 +539,7 @@ function showCustomize() {
     </div>`).join('');
   // 섹션 토글 (전역)
   const hideSec = hiddenSections();
-  const SECTIONS = [['sources', '출처별 비교'], ['weekly', '주간 예보']];
+  const SECTIONS = [['sources', '출처별 비교'], ['windmap', '바람 지도'], ['weekly', '주간 예보']];
   const secRows = SECTIONS.map(([k, l]) => `<div class="cust-row">
       <input type="checkbox" data-sec="${k}" ${hideSec.has(k) ? '' : 'checked'} />
       <label>${l}</label>
@@ -648,6 +671,35 @@ function applyTheme() {
   if (b) b.textContent = state.theme === 'rugged' ? '현장' : '감성';
 }
 
+// ── PWA 설치 버튼 (홈 화면에 앱으로 추가) ──
+let deferredInstall = null;
+function setupInstall() {
+  const btn = document.getElementById('installBtn');
+  if (!btn) return;
+  const standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  if (standalone) return; // 이미 설치됨
+
+  // Android/데스크톱 Chrome: 설치 프롬프트 이벤트를 잡아 버튼 노출
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault(); deferredInstall = e; btn.classList.remove('hidden');
+  });
+  // iOS Safari: 프로그램 설치 불가 → 안내만
+  if (isIOS) btn.classList.remove('hidden');
+
+  btn.onclick = async () => {
+    if (deferredInstall) {
+      deferredInstall.prompt();
+      await deferredInstall.userChoice;
+      deferredInstall = null; btn.classList.add('hidden');
+    } else if (isIOS) {
+      alert('아이폰 설치 방법:\n\nSafari 하단 공유 버튼(□↑) → "홈 화면에 추가" → 추가\n\n그러면 홈 화면에 앱 아이콘이 생기고, 주소창 없이 전체화면으로 실행됩니다.');
+    } else {
+      alert('브라우저 메뉴에서 "앱 설치" 또는 "홈 화면에 추가"를 선택하세요.');
+    }
+  };
+}
+
 function nearestCity(lat, lon) {
   let best = CITIES[0], bd = Infinity;
   for (const c of CITIES) {
@@ -659,6 +711,7 @@ function nearestCity(lat, lon) {
 
 // ── 시작 ──
 applyTheme();
+setupInstall();
 initControls();
 if (!localStorage.getItem(LS.onboarded)) {
   showOnboarding();

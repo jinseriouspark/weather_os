@@ -164,7 +164,12 @@ main { max-width: 1080px; margin: 0 auto; padding: 20px 16px 40px; }
 .sun-times .ico { width: 14px; height: 14px; }
 @media (max-width: 460px) { .widget.wide { grid-column: span 2; } }
 
-.section-title { font-size: 13px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: var(--ink-soft); text-shadow: 0 1px 4px rgba(0,0,0,0.25); margin: 28px 0 12px; }
+.section-title { font-size: 13px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: var(--ink-soft); text-shadow: 0 1px 4px rgba(0,0,0,0.25); margin: 30px 0 12px; }
+.widgets { margin-bottom: 8px; }
+/* 바람 지도 (Windy 임베드) */
+.windmap { border-radius: var(--radius); overflow: hidden; border: 1px solid var(--glass-border); box-shadow: var(--shadow); background: var(--glass); }
+.windmap iframe { display: block; width: 100%; height: 360px; border: 0; }
+#installBtn { font-weight: 600; }
 /* 주간 예보(중기) */
 .weekly { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(96px, 1fr); gap: 10px; overflow-x: auto; padding-bottom: 4px; }
 .wcard {
