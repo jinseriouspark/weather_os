@@ -29,7 +29,7 @@ function mapPoint(o) {
     windGust: kmhToMs(wind.gust?.value),
     windDir: wind.direction?.degrees ?? null,
     precipProb: precip.probability?.percent ?? null,
-    precipType: mapPrecipType(precip.probability?.type || precip.snowQpf ? 'snow' : null),
+    precipType: mapPrecipType(precip.probability?.type) ?? (precip.snowQpf?.quantity ? 'snow' : null),
     precipAmount: precip.qpf?.quantity ?? null,
     lightning: o.thunderstormProbability != null ? o.thunderstormProbability > 0 : null,
     visibility: o.visibility?.distance ?? null,
