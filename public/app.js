@@ -673,6 +673,52 @@ function showCustomize() {
   document.getElementById('custCancel').onclick = closeModal;
 }
 
+// ── 내 드론 등록 (기체·모터 등) ── 지금은 이 기기(localStorage)에 저장, 로그인 붙이면 계정에 동기화
+function loadDrones() { try { return JSON.parse(localStorage.getItem('wx.drones')) || []; } catch { return []; } }
+function saveDrones(d) { localStorage.setItem('wx.drones', JSON.stringify(d)); }
+
+function showDrones() {
+  const drones = loadDrones();
+  const list = drones.length ? drones.map((d) => {
+    const spec = [d.frame && `기체 ${d.frame}`, d.motor && `모터 ${d.motor}`, d.battery && `배터리 ${d.battery}`, d.weight && `${d.weight}g`]
+      .filter(Boolean).map(escHtml).join(' · ') || '사양 미입력';
+    return `<div class="drone-row">
+      <div class="drone-main"><div class="drone-name">${escHtml(d.name)}</div><div class="drone-spec">${spec}</div></div>
+      <button class="btn-ghost drone-del" data-id="${d.id}">삭제</button>
+    </div>`;
+  }).join('') : '<p class="cust-hint">등록된 드론이 없어요. 아래에서 추가하세요.</p>';
+
+  openModal(`
+    <h2>🛩️ 내 드론</h2>
+    <p class="cust-hint">오늘 날리거나 관리하는 드론을 등록하세요. 지금은 이 기기에 저장되고, 로그인을 붙이면 계정에 동기화돼요.</p>
+    <div class="drone-list">${list}</div>
+    <div class="drone-form">
+      <input id="dr-name" placeholder="이름 (예: Mavic 3 / 5인치 프리스타일)" maxlength="40" />
+      <input id="dr-frame" placeholder="기체·프레임 (예: DJI M3 / GEP-CL35)" maxlength="40" />
+      <input id="dr-motor" placeholder="모터 (예: 2306 1700KV)" maxlength="40" />
+      <input id="dr-battery" placeholder="배터리 (예: 6S 1300mAh)" maxlength="40" />
+      <input id="dr-weight" type="number" inputmode="numeric" placeholder="무게 (g)" />
+    </div>
+    <button class="btn-primary" id="dr-add">＋ 추가</button>
+    <button class="btn-ghost" id="dr-close">닫기</button>`);
+
+  const val = (id) => document.getElementById(id).value.trim();
+  document.getElementById('dr-add').onclick = () => {
+    const name = val('dr-name');
+    if (!name) { alert('드론 이름을 입력하세요.'); return; }
+    const d = loadDrones();
+    d.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
+      name, frame: val('dr-frame'), motor: val('dr-motor'), battery: val('dr-battery'), weight: val('dr-weight') });
+    saveDrones(d);
+    track('drone_add');
+    showDrones();
+  };
+  document.querySelectorAll('.drone-del').forEach((b) => {
+    b.onclick = () => { saveDrones(loadDrones().filter((x) => x.id !== b.dataset.id)); showDrones(); };
+  });
+  document.getElementById('dr-close').onclick = closeModal;
+}
+
 function openModal(html) {
   document.getElementById('modalBody').innerHTML = html;
   document.getElementById('modal').classList.remove('hidden');
@@ -736,6 +782,8 @@ function initControls() {
   };
   document.getElementById('refreshBtn').onclick = () => load('refresh');
   document.getElementById('customizeBtn').onclick = showCustomize;
+  const db = document.getElementById('dronesBtn');
+  if (db) db.onclick = showDrones;
   document.getElementById('modal').onclick = (e) => { if (e.target.id === 'modal') closeModal(); };
   setupMapLive();
 }

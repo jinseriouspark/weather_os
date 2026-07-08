@@ -371,6 +371,8 @@ body.scrolled .brand-name { display: none; }
 .scard .src-note .ico { width: 13px; height: 13px; }
 
 .foot { margin-top: 30px; color: var(--ink-faint); font-size: 12px; display: flex; flex-direction: column; gap: 6px; text-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+.foot-links a { color: var(--ink-soft); text-decoration: none; }
+.foot-links a:hover { color: var(--ink); text-decoration: underline; }
 .disclaimer { color: var(--ink-faint); }
 
 /* ── 팀 페이지 ── */
@@ -423,6 +425,18 @@ body.scrolled .brand-name { display: none; }
 .preset-opt .po-reco { font-size: 11px; color: #b6ffd4; }
 .preset-opt .po-desc { font-size: 12px; color: var(--ink-soft); margin-top: 5px; }
 .cust-hint { color: var(--ink-soft); font-size: 13px; margin: 4px 0 8px; }
+
+/* 내 드론 등록 */
+.drone-list { display: flex; flex-direction: column; gap: 8px; margin: 8px 0 14px; }
+.drone-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); border-radius: 12px; }
+.drone-name { font-weight: 700; font-size: 14px; }
+.drone-spec { font-size: 12px; color: var(--ink-soft); margin-top: 2px; }
+.drone-del { padding: 6px 12px !important; font-size: 12px !important; margin-top: 0 !important; white-space: nowrap; flex: none; }
+.drone-main { min-width: 0; }
+.drone-form { display: flex; flex-direction: column; gap: 8px; margin-bottom: 4px; }
+.drone-form input { background: rgba(255,255,255,0.06); border: 1px solid var(--glass-border); border-radius: 10px; padding: 10px 12px; color: var(--ink); font-size: 14px; outline: none; }
+.drone-form input:focus { border-color: rgba(255,255,255,0.4); }
+.drone-form input::placeholder { color: var(--ink-faint); }
 .cust-group-title { font-size: 12px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; color: var(--ink-soft); margin: 16px 0 4px; }
 .cust-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--glass-hair); }
 .cust-row input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--accent); }
