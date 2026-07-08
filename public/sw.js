@@ -48,19 +48,18 @@ self.addEventListener('fetch', (e) => {
   // 인증/팀 등 나머지 API는 절대 캐시하지 않음
   if (url.pathname.includes('/api/')) return;
 
-  // 정적 자원: 캐시 먼저 주고 뒤에서 갱신 (stale-while-revalidate)
+  // 앱 셸(HTML/JS/CSS): 온라인이면 항상 최신 우선 → 재배포가 즉시 반영됨.
+  //   (예전 stale-while-revalidate는 캐시를 먼저 줘서 배포 후에도 구버전이 한 번 더 보였음)
+  //   네트워크 실패 시에만 캐시로 폴백 → 오프라인 지원 유지.
   e.respondWith(
-    caches.match(e.request).then((cached) => {
-      const refresh = fetch(e.request)
-        .then((res) => {
-          if (res.ok) {
-            const copy = res.clone();
-            caches.open(CACHE_VERSION).then((c) => c.put(e.request, copy));
-          }
-          return res;
-        })
-        .catch(() => cached);
-      return cached || refresh;
-    })
+    fetch(e.request)
+      .then((res) => {
+        if (res.ok) {
+          const copy = res.clone();
+          caches.open(CACHE_VERSION).then((c) => c.put(e.request, copy));
+        }
+        return res;
+      })
+      .catch(() => caches.match(e.request).then((c) => c || Response.error()))
   );
 });
