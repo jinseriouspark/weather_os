@@ -31,7 +31,7 @@ function severityStyle(preset, key, value) {
   return `background:linear-gradient(100deg,${c1},${c2});-webkit-background-clip:text;background-clip:text;color:transparent;font-weight:700`;
 }
 
-// 국내 주요 지역 (지오로케이션 폴백 + 네이버 크롤링용 지역명)
+// 국내 주요 지역 (지오로케이션 폴백 + 지역명 표시용)
 const CITIES = [
   { name: '서울', lat: 37.5665, lon: 126.9780 },
   { name: '인천', lat: 37.4563, lon: 126.7052 },
