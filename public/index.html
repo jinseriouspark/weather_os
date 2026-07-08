@@ -29,11 +29,13 @@
     </div>
   </header>
 
+  <!-- 위치+바람 지도: 화면에 고정된 배경 (내용이 그 위로 스크롤) -->
+  <div id="hero-map" class="hero-map" aria-hidden="true"></div>
+  <div class="hero-scrim" aria-hidden="true"></div>
+
   <main id="app">
-    <!-- 히어로: 위치+바람 지도 배경 위에 큰 온도/판정 오버레이 (스크롤하면 상단으로 접힘) -->
+    <!-- 히어로: 고정 지도 위에 큰 온도/판정 오버레이 (스크롤하면 글자만 압축돼 위로) -->
     <section id="hero">
-      <div id="hero-map" class="hero-map" aria-hidden="true"></div>
-      <div class="hero-scrim"></div>
       <div class="hero-body">
         <section id="verdict" class="verdict"></section>
         <div id="warnbar" class="warnbar"></div>
@@ -41,27 +43,30 @@
       <div class="hero-hint" aria-hidden="true"><span></span></div>
     </section>
 
-    <h2 class="section-title">바람</h2>
-    <section id="windlead" class="windlead"></section>
-    <h2 class="section-title">핵심 지표</h2>
-    <section id="widgets" class="widgets"></section>
+    <!-- 시트: 불투명 배경으로 지도 위를 덮으며 올라옴 -->
+    <div class="sheet">
+      <h2 class="section-title">바람</h2>
+      <section id="windlead" class="windlead"></section>
+      <h2 class="section-title">핵심 지표</h2>
+      <section id="widgets" class="widgets"></section>
 
-    <div class="section-head" id="sources-head">
-      <h2 class="section-title">출처별 비교</h2>
-      <label class="colorby-label">색상 기준
-        <select id="colorBySelect" title="박스 색을 어떤 지표 기준으로 칠할지"></select>
-      </label>
+      <div class="section-head" id="sources-head">
+        <h2 class="section-title">출처별 비교</h2>
+        <label class="colorby-label">색상 기준
+          <select id="colorBySelect" title="박스 색을 어떤 지표 기준으로 칠할지"></select>
+        </label>
+      </div>
+      <section id="sources" class="sources"></section>
+
+      <section id="weekly-wrap" class="hidden">
+        <h2 class="section-title">주간 예보 · 3~10일 후 (기상청 중기)</h2>
+        <div id="weekly" class="weekly"></div>
+      </section>
+      <footer class="foot">
+        <span id="updated"></span>
+        <div id="meta" class="meta"></div>
+      </footer>
     </div>
-    <section id="sources" class="sources"></section>
-
-    <section id="weekly-wrap" class="hidden">
-      <h2 class="section-title">주간 예보 · 3~10일 후 (기상청 중기)</h2>
-      <div id="weekly" class="weekly"></div>
-    </section>
-    <footer class="foot">
-      <span id="updated"></span>
-      <div id="meta" class="meta"></div>
-    </footer>
   </main>
 
   <!-- 온보딩 / 커스터마이즈 모달 -->
