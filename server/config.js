@@ -7,6 +7,8 @@ export const config = {
   metarKey: process.env.KMA_METAR_KEY || '',
   metarUrl: process.env.KMA_METAR_URL || '',
   googleKey: process.env.GOOGLE_WEATHER_KEY || '',
+  owmKey: process.env.OWM_KEY || '',
+  weatherApiKey: process.env.WEATHERAPI_KEY || '',
   apple: {
     teamId: process.env.APPLE_TEAM_ID || '',
     keyId: process.env.APPLE_KEY_ID || '',
@@ -19,9 +21,12 @@ export const config = {
 export function sourceAvailability() {
   return {
     openmeteo: true,
+    yr: true,
     kma: !!config.kmaKey,
     kma_metar: !!config.metarKey,
     google: !!config.googleKey,
+    owm: !!config.owmKey,
+    weatherapi: !!config.weatherApiKey,
     apple: !!(config.apple.teamId && config.apple.keyId && config.apple.serviceId && config.apple.privateKey),
   };
 }

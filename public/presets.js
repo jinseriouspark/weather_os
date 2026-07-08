@@ -217,7 +217,7 @@ const PRESETS = {
 
 // ── 공유 판정 로직 (대시보드 + 팀 페이지 공통) ───────────────
 // 출처 우선순위: 대표 출처에 값이 없으면 다음 출처로 보완.
-const SOURCE_ORDER = ['kma', 'kma_metar', 'google', 'openmeteo', 'apple'];
+const SOURCE_ORDER = ['kma', 'kma_metar', 'yr', 'openmeteo', 'owm', 'weatherapi', 'google', 'apple'];
 const WORSE = { go: 0, caution: 1, nogo: 2, na: -1 };
 const VERDICT_TEXT = { go: 'GO', caution: '주의', nogo: 'NO-GO', na: '데이터 없음' };
 
