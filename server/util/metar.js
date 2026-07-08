@@ -34,15 +34,20 @@ export function haversineKm(lat1, lon1, lat2, lon2) {
   return 2 * R * Math.asin(Math.sqrt(a));
 }
 
+// 위경도에서 가까운 순으로 정렬된 공항 목록 (각 항목에 distanceKm 포함)
+export function rankAirports(lat, lon) {
+  return AIRPORTS
+    .map((a) => ({ ...a, distanceKm: Math.round(haversineKm(lat, lon, a.lat, a.lon)) }))
+    .sort((x, y) => x.distanceKm - y.distanceKm);
+}
+
 // 위경도에서 가장 가까운 공항
 export function nearestAirport(lat, lon) {
-  let best = null;
-  for (const a of AIRPORTS) {
-    const d = haversineKm(lat, lon, a.lat, a.lon);
-    if (!best || d < best.distanceKm) best = { ...a, distanceKm: Math.round(d) };
-  }
-  return best;
+  return rankAirports(lat, lon)[0] || null;
 }
+
+// METAR를 24시간 안정적으로 제공하는 주요(국제)공항 — 지방·군 공항이 관측을 안 줄 때 폴백.
+export const MAJOR_ICAO = ['RKSI', 'RKSS', 'RKPC', 'RKPK', 'RKTN', 'RKJB'];
 
 const KT_TO_MS = 0.514444;
 const FT_TO_M = 0.3048;
