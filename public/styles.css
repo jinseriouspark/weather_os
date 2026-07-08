@@ -142,7 +142,18 @@ main { max-width: 1080px; margin: 0 auto; padding: 20px 16px 40px; }
 .widget .w-sub { font-size: 12px; color: var(--ink-soft); margin-top: 3px; min-height: 14px; }
 .widget .w-src { font-size: 11px; color: var(--ink-faint); margin-top: 8px; }
 
-.section-title { font-size: 13px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; margin: 28px 0 12px; color: var(--ink-soft); text-shadow: 0 1px 4px rgba(0,0,0,0.25); }
+.section-title { font-size: 13px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: var(--ink-soft); text-shadow: 0 1px 4px rgba(0,0,0,0.25); }
+.section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 28px 0 12px; flex-wrap: wrap; }
+.colorby-label { font-size: 12px; color: var(--ink-soft); display: inline-flex; align-items: center; gap: 7px; text-shadow: 0 1px 3px rgba(0,0,0,0.25); }
+.colorby-label select {
+  background: var(--glass); color: var(--ink); border: 1px solid var(--glass-border);
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  border-radius: 980px; padding: 6px 11px; font-size: 13px; cursor: pointer;
+}
+.colorby-label select option { color: #10233a; }
+/* 색 기준으로 선택된 지표 행 강조 */
+.scard .row.hot .k { color: var(--ink); font-weight: 700; }
+.scard .row.hot .rowval { font-weight: 800; }
 
 /* ── 출처 비교 카드 ── */
 .sources { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 13px; }

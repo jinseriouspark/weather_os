@@ -44,7 +44,9 @@ export async function fetchKmaMetar(lat, lon, key, urlTemplate) {
     const raw = extractRawMetar(body, ap.icao);
     const parsed = raw ? parseMetar(raw) : parseIwxxm(body);
     if (!parsed) {
-      throw new Error('METAR 파싱 실패 (응답 형식 확인)');
+      const total = /<totalCount>(\d+)<\/totalCount>/.exec(body)?.[1];
+      const hint = total === '0' ? '해당 공항 관측 없음' : (/iwxxm:/.test(body) ? 'IWXXM 파싱 실패' : '알 수 없는 형식');
+      throw new Error(`파싱 실패 (${ap.icao}, ${hint})`);
     }
 
     const current = makePoint({

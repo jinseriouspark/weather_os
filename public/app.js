@@ -8,27 +8,45 @@ const SEV_STOPS = [
   [1.0, [255, 122, 110]], // 빨강
 ];
 function lerp(a, b, t) { return Math.round(a + (b - a) * t); }
-function severityColor(score, light = 0) {
-  let c1 = SEV_STOPS[0][1];
+// 위험도 점수 → [r,g,b]
+function severityRGB(score, light = 0) {
+  let c = SEV_STOPS[0][1];
   for (let i = 1; i < SEV_STOPS.length; i++) {
     const [s0, a] = SEV_STOPS[i - 1];
     const [s1, b] = SEV_STOPS[i];
     if (score <= s1 || i === SEV_STOPS.length - 1) {
       const t = Math.max(0, Math.min(1, (score - s0) / (s1 - s0)));
-      c1 = [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)];
+      c = [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)];
       break;
     }
   }
-  const [r, g, b] = c1.map((v) => Math.max(0, Math.min(255, v + light)));
-  return `rgb(${r}, ${g}, ${b})`;
+  return c.map((v) => Math.max(0, Math.min(255, v + light)));
 }
+const rgb = (a) => `rgb(${a[0]}, ${a[1]}, ${a[2]})`;
+const rgba = (a, al) => `rgba(${a[0]}, ${a[1]}, ${a[2]}, ${al})`;
+
 // 값에 위험도 그라데이션 텍스트를 입히는 인라인 스타일 (임계값 없으면 흰색)
 function severityStyle(preset, key, value) {
   const score = severityScore(preset.thresholds[key], value);
   if (score == null) return '';
-  const c1 = severityColor(score, 34);
-  const c2 = severityColor(score, -26);
-  return `background:linear-gradient(100deg,${c1},${c2});-webkit-background-clip:text;background-clip:text;color:transparent;font-weight:700`;
+  return `background:linear-gradient(100deg,${rgb(severityRGB(score, 34))},${rgb(severityRGB(score, -26))});-webkit-background-clip:text;background-clip:text;color:transparent;font-weight:700`;
+}
+
+// 출처 카드 전체의 대표 위험도 = 표시 지표 중 가장 위험한 값. null 이면 색 없음.
+function sourceSeverity(preset, current) {
+  let worst = null;
+  for (const k of COMPARE_KEYS) {
+    const v = INDICATORS[k].value(current);
+    const s = severityScore(preset.thresholds[k], v);
+    if (s != null) worst = worst == null ? s : Math.max(worst, s);
+  }
+  return worst;
+}
+// 위험도에 따라 카드 박스를 은은하게 틴트하는 인라인 스타일
+function cardTintStyle(score) {
+  if (score == null) return '';
+  const c = severityRGB(score);
+  return `background:linear-gradient(180deg, ${rgba(c, 0.22)}, ${rgba(c, 0.06)}); border-color:${rgba(c, 0.5)}`;
 }
 
 // 국내 주요 지역 (지오로케이션 폴백 + 지역명 표시용)
@@ -59,6 +77,7 @@ const LS = {
 const state = {
   presetId: localStorage.getItem(LS.preset) || 'drone',
   city: localStorage.getItem(LS.city) || '서울',
+  colorBy: localStorage.getItem('wx.colorby') || 'worst', // 출처 박스 색 기준
   coords: null, // {lat, lon, region}
   data: null,
 };
@@ -220,27 +239,35 @@ const COMPARE_KEYS = ['temp', 'wind', 'gust', 'precip', 'humidity', 'visibility'
 function renderSources(data) {
   const wrap = document.getElementById('sources');
   wrap.innerHTML = '';
+  const preset = activePreset();
+  const colorBy = state.colorBy || 'worst'; // 박스 색 기준: 'worst'(종합) 또는 지표 키
   for (const sid of SOURCE_ORDER) {
     const src = data.sources[sid];
     if (!src) continue;
     const card = document.createElement('div');
     card.className = `scard ${src.available ? '' : 'off'}`;
     let rows = '';
+    let tint = '';
     if (src.available && src.current) {
-      const preset = activePreset();
       for (const k of COMPARE_KEYS) {
         const ind = INDICATORS[k];
         const val = ind.value(src.current);
         if (val == null) continue;
         const disp = ind.fmt ? ind.fmt(val) : `${val} ${ind.unit}`;
-        // 활성 프리셋 임계값으로 값에 위험도 그라데이션 색을 입혀 한눈에 비교
-        const sty = severityStyle(preset, k, val);
-        rows += `<div class="row"><span class="k">${ind.icon} ${ind.label}</span><span class="rowval" style="${sty}">${disp}</span></div>`;
+        // 색 기준으로 선택된 지표는 값 라벨을 강조
+        const hot = colorBy !== 'worst' && colorBy === k ? ' hot' : '';
+        rows += `<div class="row${hot}"><span class="k">${ind.icon} ${ind.label}</span><span class="rowval">${disp}</span></div>`;
       }
       if (!rows) rows = '<div class="reason">표시할 값 없음</div>';
+      // 선택 기준의 위험도로 카드 박스를 칠한다
+      const score = colorBy === 'worst'
+        ? sourceSeverity(preset, src.current)
+        : severityScore(preset.thresholds[colorBy], INDICATORS[colorBy].value(src.current));
+      tint = cardTintStyle(score);
     } else {
       rows = `<div class="reason">${src.reason || '사용 불가'}</div>`;
     }
+    card.setAttribute('style', tint);
     card.innerHTML = `<h3>${sourceLabel(sid)} <span class="badge ${src.available ? 'on' : ''}">${src.available ? 'ON' : 'OFF'}</span></h3>${rows}`;
     wrap.appendChild(card);
   }
@@ -381,6 +408,19 @@ function initControls() {
     localStorage.setItem(LS.city, state.city);
     load();
   };
+
+  // 출처 박스 색상 기준 선택 (종합 또는 특정 지표)
+  const cb = document.getElementById('colorBySelect');
+  if (cb) {
+    const opts = [['worst', '종합(가장 위험)'], ...COMPARE_KEYS.map((k) => [k, `${INDICATORS[k].label}`])];
+    cb.innerHTML = opts.map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
+    cb.value = state.colorBy;
+    cb.onchange = () => {
+      state.colorBy = cb.value;
+      localStorage.setItem('wx.colorby', state.colorBy);
+      if (state.data) renderSources(state.data);
+    };
+  }
 
   document.getElementById('geoBtn').onclick = () => {
     if (!navigator.geolocation) return alert('이 브라우저는 위치를 지원하지 않습니다.');
