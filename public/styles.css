@@ -224,6 +224,8 @@ body.scrolled .brand-name { display: none; }
 .wl-spd { font-size: 40px; font-weight: 800; letter-spacing: -1.5px; line-height: 1.05; font-variant-numeric: tabular-nums; }
 .wl-spd span { font-size: 16px; font-weight: 600; color: var(--ink-soft); margin-left: 4px; }
 .wl-gust { font-size: 13px; color: var(--ink-soft); margin-top: 2px; }
+.wl-rwy { font-size: 13px; color: var(--accent); font-weight: 600; margin-top: 6px; }
+.wl-rwy b { color: var(--ink); }
 /* 바람 지도 (Windy 임베드) */
 .windmap { border-radius: var(--radius); overflow: hidden; border: 1px solid var(--glass-border); box-shadow: var(--shadow); background: var(--glass); }
 .windmap iframe { display: block; width: 100%; height: 360px; border: 0; }

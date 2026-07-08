@@ -378,6 +378,13 @@ function renderWindLead(data, preset) {
   const dirText = p.windDirText || (dir != null ? DIR16[Math.round((dir % 360) / 22.5) % 16] : '—');
   // 바람이 불어오는 방향(from) → 화살표는 불어가는 쪽(downwind)을 가리키게 회전
   const rot = dir != null ? dir + 180 : 0;
+  // 항덕: 사용 활주로 추정 — 항공기는 맞바람으로 이착륙 → 풍향에 가장 가까운 활주로 번호
+  let rwy = '';
+  if (dir != null) {
+    let n = Math.round(dir / 10); if (n === 0) n = 36; // 01~36
+    const recip = ((n + 18 - 1) % 36) + 1;
+    rwy = `RWY ${String(n).padStart(2, '0')}/${String(recip).padStart(2, '0')} · <b>${String(n).padStart(2, '0')}</b> 사용 추정`;
+  }
   el.innerHTML = `
     <div class="wl-card ${st}">
       <div class="wl-compass" style="--rot:${rot}deg">
@@ -392,6 +399,7 @@ function renderWindLead(data, preset) {
         <div class="wl-dir">${dir != null ? dirText + '풍' : '바람 정보 없음'}</div>
         <div class="wl-spd">${spd != null ? spd : '—'}<span>m/s</span></div>
         <div class="wl-gust">${gust != null ? `돌풍 ${gust} m/s` : ''}${dir != null ? ` · ${dir}°` : ''}</div>
+        ${rwy ? `<div class="wl-rwy">🛬 ${rwy}</div>` : ''}
       </div>
     </div>`;
 }
