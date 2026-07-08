@@ -69,26 +69,34 @@ async function fetchOne(ap, key, urlTemplate) {
   return current;
 }
 
+// 이 거리(km) 안에 관측을 주는 공항이 없으면 METAR는 위치 대표성이 떨어져 표시하지 않는다.
+// (가시거리·돌풍·구름은 Open-Meteo가 해당 위치로 항상 제공)
+const MAX_KM = Number(process.env.METAR_MAX_KM) || 80;
+
+// 카드를 조용히 숨기는 결과 (프론트에서 렌더하지 않음)
+function hidden(reason) {
+  return { ...unavailable(LABEL, reason), hidden: true };
+}
+
 export async function fetchKmaMetar(lat, lon, key, urlTemplate) {
   if (!key) return unavailable(LABEL, '키 필요');
   const ranked = rankAirports(lat, lon);
-  if (!ranked.length) return unavailable(LABEL, '인근 공항 없음');
 
-  // 시도 순서: 가장 가까운 공항 → 가장 가까운 주요(24시간 관측)공항으로 폴백.
-  // 지방·군 공항은 METAR를 상시 제공하지 않아 폴백이 필요하다.
-  const nearest = ranked[0];
-  const nearestMajor = ranked.find((a) => MAJOR_ICAO.includes(a.icao));
-  const tryList = [nearest];
-  if (nearestMajor && nearestMajor.icao !== nearest.icao) tryList.push(nearestMajor);
+  // 반경 MAX_KM 안의 후보만: 가장 가까운 공항 + 그 안의 주요(24h) 공항들
+  const nearby = ranked.filter((a) => a.distanceKm <= MAX_KM);
+  if (!nearby.length) return hidden('인근 공항 없음');
+  const majors = nearby.filter((a) => MAJOR_ICAO.includes(a.icao));
+  const seen = new Set();
+  const tryList = [nearby[0], ...majors]
+    .filter((a) => (seen.has(a.icao) ? false : seen.add(a.icao)))
+    .slice(0, 3);
 
-  let lastErr = '알 수 없음';
   for (const ap of tryList) {
     try {
       const current = await fetchOne(ap, key, urlTemplate);
       return sourceResult({ available: true, label: `${LABEL} ${ap.name}(${ap.icao})`, current, hourly: [] });
-    } catch (e) {
-      lastErr = e.message;
-    }
+    } catch { /* 다음 공항 시도 */ }
   }
-  return unavailable(`${LABEL} ${nearest.name}(${nearest.icao})`, `오류: ${lastErr}`);
+  // 인근 공항이 지금 관측을 안 줌 → 조용히 숨김
+  return hidden('인근 공항 관측 없음');
 }

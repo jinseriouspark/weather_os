@@ -292,7 +292,7 @@ function renderSources(data) {
   const colorBy = state.colorBy || 'worst'; // 박스 색 기준: 'worst'(종합) 또는 지표 키
   for (const sid of SOURCE_ORDER) {
     const src = data.sources[sid];
-    if (!src) continue;
+    if (!src || src.hidden) continue; // 숨김 처리된 출처(예: 인근 공항 METAR 없음)는 렌더 안 함
     const card = document.createElement('div');
     card.className = `scard ${src.available ? '' : 'off'}`;
     let rows = '';
