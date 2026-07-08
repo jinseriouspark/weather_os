@@ -42,12 +42,14 @@ app.get('/api/weather', async (req, res) => {
     return res.status(400).json({ error: 'lat, lon 쿼리 파라미터가 필요합니다.' });
   }
   const region = req.query.region ? String(req.query.region) : null;
+  const display = req.query.display ? String(req.query.display).slice(0, 40) : null;
+  const via = req.query.via ? String(req.query.via).slice(0, 16) : 'city'; // city|geo|search|refresh
   const sources = req.query.sources ? String(req.query.sources).split(',').map((s) => s.trim()) : null;
 
   try {
     const data = await aggregate({ lat, lon, region, sources });
-    // 사용량 로그(비식별): 지역명 + 라운딩 좌표만, IP는 기록 안 함
-    logEvent('weather_query', { region: region || null, lat: coarse(lat), lon: coarse(lon) });
+    // 사용량 로그(비식별): 지역명·표시지명·접근경로 + 라운딩 좌표만, IP는 기록 안 함
+    logEvent('weather_query', { region: region || null, place: display, via, lat: coarse(lat), lon: coarse(lon) });
     res.json(data);
   } catch (e) {
     res.status(500).json({ error: e.message });

@@ -21,8 +21,25 @@ function withTimeout(promise, ms) {
   ]);
 }
 
+// 짧은 응답 캐시: 같은 지역을 몇 분 내 다시 조회(새로고침)하면 동일 스냅샷을 돌려준다.
+//   → "새로고침할 때마다 값·출처가 조금씩 달라지는" 현상(출처 레이스) 방지 + API 호출 절감.
+//   TTL이 지나면 다시 실제 조회하므로 데이터는 계속 갱신된다.
+const CACHE_TTL = Number(process.env.RESP_CACHE_MS) || 180000; // 3분
+const respCache = new Map();
+function cacheKey(lat, lon, region, want) {
+  return `${lat.toFixed(2)},${lon.toFixed(2)}|${region || ''}|${want.join(',')}`;
+}
+
 export async function aggregate({ lat, lon, region, sources }) {
   const want = sources && sources.length ? sources : ALL;
+
+  // 캐시 히트: TTL 이내면 동일 결과 재사용 (화면이 새로고침마다 흔들리지 않게)
+  const key = cacheKey(lat, lon, region, want);
+  const hit = respCache.get(key);
+  if (hit && Date.now() - hit.at < CACHE_TTL) {
+    return { ...hit.data, cached: true };
+  }
+
   const fetchedAt = new Date().toISOString();
 
   const tasks = {
@@ -72,7 +89,7 @@ export async function aggregate({ lat, lon, region, sources }) {
     withTimeout(fetchKmaMid(region), 6000).catch(() => null),
   ]);
 
-  return {
+  const out = {
     location: { lat, lon, region: region || null },
     fetchedAt,
     sun,
@@ -81,4 +98,12 @@ export async function aggregate({ lat, lon, region, sources }) {
     mid: mid || null,
     meta: { enabled, missingKeys },
   };
+
+  // 캐시에 저장(메모리 무한 증가 방지: 200개 넘으면 가장 오래된 것부터 정리)
+  respCache.set(key, { at: Date.now(), data: out });
+  if (respCache.size > 200) {
+    const oldest = [...respCache.entries()].sort((a, b) => a[1].at - b[1].at)[0];
+    if (oldest) respCache.delete(oldest[0]);
+  }
+  return out;
 }

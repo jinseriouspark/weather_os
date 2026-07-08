@@ -20,7 +20,10 @@
     <div class="brand"><img class="brand-ico" src="icons/icon-192.png" alt="" width="22" height="22" /> <span class="brand-name">Weather Ops</span><span id="navtitle" class="navtitle"></span></div>
     <div class="controls">
       <select id="presetSelect" title="업무 프리셋"></select>
-      <select id="citySelect" title="지역"></select>
+      <div class="citysearch">
+        <input id="citySearch" type="search" inputmode="search" placeholder="지역 검색" autocomplete="off" title="지역 검색" />
+        <div id="cityResults" class="city-results hidden" role="listbox"></div>
+      </div>
       <button id="geoBtn" title="현재 위치 사용"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg></button>
       <button id="refreshBtn" title="새로고침"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg></button>
       <button id="customizeBtn" title="대시보드 편집"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" x2="4" y1="21" y2="14"/><line x1="4" x2="4" y1="10" y2="3"/><line x1="12" x2="12" y1="21" y2="12"/><line x1="12" x2="12" y1="8" y2="3"/><line x1="20" x2="20" y1="21" y2="16"/><line x1="20" x2="20" y1="12" y2="3"/><line x1="2" x2="6" y1="14" y2="14"/><line x1="10" x2="14" y1="8" y2="8"/><line x1="18" x2="22" y1="16" y2="16"/></svg></button>
@@ -45,9 +48,11 @@
 
     <!-- 바람 지도 리빌: 히어로 글자가 밀려 올라간 뒤 '처음 보이는' 깨끗한 바람 지도 구간
          (배경 고정 지도가 그림자 모드에서 벗겨지며 선명하게 드러남) -->
-    <div class="map-reveal" aria-hidden="true">
-      <div class="map-reveal-label">바람 지도 · 실시간</div>
+    <div class="map-reveal">
+      <div class="map-reveal-label" aria-hidden="true">바람 지도 · 두 손가락으로 확대·이동</div>
     </div>
+    <!-- 지도 조작 구간(그림자 걷힌 뒤)에서만 뜨는 '아래로' 버튼: 확대 중에도 시트로 이동 -->
+    <button id="mapNext" class="map-next" type="button">아래로 ↓</button>
 
     <!-- 시트: 불투명 배경으로 지도 위를 덮으며 올라옴 -->
     <div class="sheet">
@@ -65,7 +70,7 @@
       <section id="sources" class="sources"></section>
 
       <section id="weekly-wrap" class="hidden">
-        <h2 class="section-title">주간 예보 · 3~10일 후 (기상청 중기)</h2>
+        <h2 class="section-title" id="weekly-title">주간 예보 · 3~10일 후 (기상청 중기)</h2>
         <div id="weekly" class="weekly"></div>
       </section>
       <footer class="foot">

@@ -153,7 +153,7 @@ async function refreshMembers() {
     const card = document.createElement('div');
     card.className = 'scard member-card';
     const when = new Date(m.updatedAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
-    const presetName = PRESETS[m.presetId]?.name || '일반';
+    const presetName = PRESETS[m.presetId]?.name || '항공';
     card.innerHTML = `
       <h3>${m.isMe ? '🟢 ' : ''}${m.username} <span class="badge on">${presetName}</span></h3>
       <div class="row"><span class="k">위치</span><span>${m.lat.toFixed(3)}, ${m.lon.toFixed(3)}</span></div>
@@ -170,7 +170,7 @@ async function loadVerdict(m, pill) {
     const res = await fetch(`/api/weather?lat=${m.lat}&lon=${m.lon}`, { credentials: 'same-origin' });
     const data = await res.json();
     if (data.error || !data.sources) { pill.textContent = '날씨 N/A'; return; }
-    const preset = PRESETS[m.presetId] || PRESETS.general;
+    const preset = PRESETS[m.presetId] || PRESETS.drone;
     const { status } = evalVerdict(data, preset);
     pill.textContent = VERDICT_TEXT[status];
     pill.className = `verdict-pill ${status}`;

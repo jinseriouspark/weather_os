@@ -149,7 +149,7 @@ const PRESETS = {
   drone: {
     id: 'drone', name: '드론 비행', icon: ICONS.drone,
     desc: '풍속·돌풍·강수·가시거리·일출일몰 중심. 야간/우천/강풍 시 비행 금지.',
-    widgets: ['wind', 'gust', 'precip', 'lightning', 'visibility', 'cloud', 'daylight', 'temp'],
+    widgets: ['wind', 'gust', 'precip', 'lightning', 'visibility', 'cloud', 'daylight'],
     thresholds: {
       wind: over(8, 12),
       gust: over(10, 14),
@@ -163,9 +163,9 @@ const PRESETS = {
     daylightRule: (isDay) => (isDay === false ? 'caution' : 'go'),
   },
   flighttest: {
-    id: 'flighttest', name: '비행시험', icon: ICONS.plane,
-    desc: '유인/실험기 시험비행. 측풍·운고·가시거리를 엄격히 본다.',
-    widgets: ['wind', 'gust', 'visibility', 'ceiling', 'cloud', 'precip', 'daylight', 'temp'],
+    id: 'flighttest', name: '항공', icon: ICONS.plane,
+    desc: '공항 관측·항공기 운항 조건(항덕용). 바람·측풍·운고·가시거리 중심.',
+    widgets: ['wind', 'gust', 'visibility', 'ceiling', 'cloud', 'precip', 'daylight'],
     thresholds: {
       wind: over(7, 11),
       gust: over(9, 13),
@@ -176,42 +176,6 @@ const PRESETS = {
       temp: band(-15, -5, 35, 40),
     },
     daylightRule: (isDay) => (isDay === false ? 'caution' : 'go'),
-  },
-  marine: {
-    id: 'marine', name: '해상(배)', icon: ICONS.ship,
-    desc: '풍속·돌풍·파고·가시거리·강수 중심.',
-    widgets: ['wind', 'gust', 'wave', 'visibility', 'precip', 'lightning', 'temp'],
-    thresholds: {
-      wind: over(10, 14),
-      gust: over(12, 17),
-      wave: over(1.5, 3),
-      visibility: under(2, 1),
-      precip: over(50, 80),
-      lightning: bool(true),
-      temp: band(-10, 0, 33, 38),
-    },
-  },
-  field: {
-    id: 'field', name: '현장작업', icon: ICONS.hardhat,
-    desc: '건설·야외작업. 체감온도(폭염·한파)·강수·낙뢰·강풍 중심.',
-    widgets: ['feels', 'precip', 'lightning', 'wind', 'temp', 'humidity'],
-    thresholds: {
-      feels: band(-12, -5, 33, 38),
-      precip: over(50, 80),
-      lightning: bool(true),
-      wind: over(10, 15),
-      temp: band(-12, -5, 33, 38),
-    },
-  },
-  general: {
-    id: 'general', name: '일반', icon: ICONS.cloudsun,
-    desc: '표준 날씨 요약.',
-    widgets: ['temp', 'precip', 'wind', 'humidity', 'cloud', 'daylight'],
-    thresholds: {
-      precip: over(60, 90),
-      wind: over(12, 18),
-      temp: band(-15, -5, 35, 40),
-    },
   },
 };
 

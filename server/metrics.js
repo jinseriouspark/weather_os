@@ -11,13 +11,22 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const LOG_PATH = process.env.METRICS_LOG || path.join(__dirname, '..', 'metrics.log');
 
 // 메모리 카운터(빠른 /api/stats 응답용) — 부팅 시 기존 로그에서 복원
-const counters = { total: 0, byType: {}, byDay: {} };
+const counters = { total: 0, byType: {}, byDay: {}, byVia: {}, byRegion: {} };
 
-function bump(type, day) {
+function bump(e) {
+  const type = e.type;
+  const day = (e.ts || '').slice(0, 10);
   counters.total += 1;
   counters.byType[type] = (counters.byType[type] || 0) + 1;
   counters.byDay[day] = counters.byDay[day] || {};
   counters.byDay[day][type] = (counters.byDay[day][type] || 0) + 1;
+  // 날씨 조회는 접근경로(직접선택/GPS/검색/새로고침)와 지역별로도 집계
+  if (type === 'weather_query') {
+    const via = e.via || 'city';
+    counters.byVia[via] = (counters.byVia[via] || 0) + 1;
+    const rg = e.place || e.region;
+    if (rg) counters.byRegion[rg] = (counters.byRegion[rg] || 0) + 1;
+  }
 }
 
 // 부팅 시 기존 로그 적재 (있으면)
@@ -25,10 +34,7 @@ try {
   if (fs.existsSync(LOG_PATH)) {
     for (const line of fs.readFileSync(LOG_PATH, 'utf8').split('\n')) {
       if (!line.trim()) continue;
-      try {
-        const e = JSON.parse(line);
-        bump(e.type, (e.ts || '').slice(0, 10));
-      } catch { /* 깨진 줄 무시 */ }
+      try { bump(JSON.parse(line)); } catch { /* 깨진 줄 무시 */ }
     }
   }
 } catch { /* 로그 못 읽어도 서비스는 계속 */ }
@@ -41,7 +47,7 @@ try {
 export function logEvent(type, fields = {}) {
   const ts = new Date().toISOString();
   const entry = { ts, type, ...fields };
-  bump(type, ts.slice(0, 10));
+  bump(entry);
   // 비동기 추가 기록(실패해도 서비스 영향 없음)
   fs.appendFile(LOG_PATH, JSON.stringify(entry) + '\n', () => {});
   return entry;
@@ -58,12 +64,18 @@ export function coarse(n) {
 export function getStats() {
   const days = Object.keys(counters.byDay).sort();
   const last7 = days.slice(-7).map((d) => ({ date: d, ...counters.byDay[d] }));
+  // 지역 상위 15곳(조회 많은 순)
+  const topRegions = Object.entries(counters.byRegion)
+    .sort((a, b) => b[1] - a[1]).slice(0, 15)
+    .map(([region, count]) => ({ region, count }));
   return {
     totalEvents: counters.total,
     weatherQueries: counters.byType.weather_query || 0,
     registrations: counters.byType.register || 0,
     logins: counters.byType.login || 0,
     byType: counters.byType,
+    byVia: counters.byVia,       // 접근경로별: city/geo/search/refresh
+    topRegions,                  // 인기 지역
     last7days: last7,
     logPath: LOG_PATH,
   };

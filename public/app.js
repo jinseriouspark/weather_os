@@ -76,7 +76,8 @@ const LS = {
 };
 
 const state = {
-  presetId: localStorage.getItem(LS.preset) || 'drone',
+  // 저장된 프리셋이 삭제된(해상/현장/일반) 값이면 드론으로 폴백
+  presetId: PRESETS[localStorage.getItem(LS.preset)] ? localStorage.getItem(LS.preset) : 'drone',
   city: localStorage.getItem(LS.city) || '서울',
   colorBy: localStorage.getItem('wx.colorby') || 'worst', // 출처 박스 색 기준
   theme: localStorage.getItem('wx.theme') || 'soft',      // 'soft'(감성) | 'rugged'(현장)
@@ -312,7 +313,7 @@ function setAmbient(data) {
   document.body.style.setProperty('--wind-streak', streak.toFixed(3));
 }
 
-const SOURCE_LABELS = { openmeteo: 'Open-Meteo', kma: '기상청', kma_metar: 'METAR(공항)', owm: 'OpenWeather', apple: 'Apple' };
+const SOURCE_LABELS = { openmeteo: 'Open-Meteo', kma: '기상청 (네이버)', kma_metar: 'METAR(공항)', owm: 'OpenWeather', apple: 'Apple' };
 function sourceLabel(k) { return SOURCE_LABELS[k] || k; }
 
 const COMPARE_KEYS = ['temp', 'wind', 'gust', 'precip', 'humidity', 'visibility', 'cloud'];
@@ -444,6 +445,15 @@ function onHeroScroll() {
     const sp = Math.max(0, Math.min(1, window.scrollY / (window.innerHeight * 0.72)));
     scrim.style.opacity = (1 - sp).toFixed(3);
   }
+  // 확대·이동 게이트: 바람 지도 구간이 화면을 채웠을 때만(=그림자 걷힌 뒤) 지도 상호작용 허용.
+  // 히어로(밀려 올라가는 구간)에선 잠가 페이지 스크롤이 지도에 뺏기지 않게 함.
+  const rev = document.querySelector('.map-reveal');
+  if (rev && !document.body.classList.contains('no-heromap')) {
+    const r = rev.getBoundingClientRect();
+    const vh = window.innerHeight;
+    const live = r.top <= vh * 0.12 && r.bottom >= vh * 0.5;
+    document.body.classList.toggle('map-live', live);
+  }
   document.body.classList.toggle('scrolled', p > 0.45);
 }
 
@@ -456,6 +466,12 @@ function renderWeekly(data) {
   const mid = data.mid;
   if (hiddenSections().has('weekly') || !mid || !mid.days?.length) { wrap.classList.add('hidden'); return; }
   wrap.classList.remove('hidden');
+  // 제목에 해당 지역(중기 예보구역 대표도시)을 표시
+  const title = document.getElementById('weekly-title');
+  if (title) {
+    const rg = mid.region || data.location.region || state.city;
+    title.textContent = `주간 예보 · ${rg} · 3~10일 후 (기상청 중기)`;
+  }
   el.innerHTML = mid.days.map((d) => {
     const dt = new Date(d.date + 'T00:00:00');
     const dow = WEEKDAY[dt.getDay()];
@@ -494,7 +510,7 @@ function showSkeleton(region) {
     Array.from({ length: 4 }).map(() => '<div class="scard skel"></div>').join('');
 }
 
-async function load() {
+async function load(via = 'city') {
   const city = CITIES.find((c) => c.name === state.city) || CITIES[0];
   const lat = state.coords?.lat ?? city.lat;
   const lon = state.coords?.lon ?? city.lon;
@@ -518,7 +534,7 @@ async function load() {
   // 2) 뒤에서 최신 데이터 갱신 (화면은 막지 않음)
   document.body.classList.add('loading');
   try {
-    const res = await fetch(`/api/weather?lat=${lat}&lon=${lon}&region=${encodeURIComponent(kmaRegion)}`);
+    const res = await fetch(`/api/weather?lat=${lat}&lon=${lon}&region=${encodeURIComponent(kmaRegion)}&display=${encodeURIComponent(dispRegion)}&via=${encodeURIComponent(via)}`);
     const fresh = await res.json();
     if (fresh.error) throw new Error(fresh.error);
     fresh.location = fresh.location || {}; fresh.location.region = dispRegion;
@@ -657,8 +673,8 @@ function closeModal() {
 function syncControls() {
   const ps = document.getElementById('presetSelect');
   ps.value = state.presetId;
-  const cs = document.getElementById('citySelect');
-  cs.value = state.city;
+  const cs = document.getElementById('citySearch');
+  if (cs) cs.value = state.coords?.region || state.city || '';
 }
 
 function initControls() {
@@ -671,15 +687,9 @@ function initControls() {
     render();
   };
 
-  const cs = document.getElementById('citySelect');
-  cs.innerHTML = CITIES.map((c) => `<option value="${c.name}">${c.name}</option>`).join('');
-  cs.value = state.city;
-  cs.onchange = () => {
-    state.city = cs.value;
-    state.coords = null; // 도시 선택 시 GPS 해제
-    localStorage.setItem(LS.city, state.city);
-    load();
-  };
+  const cs = document.getElementById('citySearch');
+  const results = document.getElementById('cityResults');
+  if (cs && results) setupCitySearch(cs, results);
 
   // 출처 박스 색상 기준 선택 (종합 또는 특정 지표)
   const cb = document.getElementById('colorBySelect');
@@ -706,15 +716,89 @@ function initControls() {
         // 정밀 좌표로 날씨 조회, 표시는 읍면동, 기상청 특보/중기는 대표 도시로 매핑
         state.coords = { lat, lon, region: display, kmaRegion: near.name };
         btn.classList.remove('busy');
-        load();
+        load('geo');
       },
       () => { btn.classList.remove('busy'); alert('위치를 가져오지 못했습니다.'); },
       { enableHighAccuracy: true, timeout: 10000 }
     );
   };
-  document.getElementById('refreshBtn').onclick = load;
+  document.getElementById('refreshBtn').onclick = () => load('refresh');
   document.getElementById('customizeBtn').onclick = showCustomize;
   document.getElementById('modal').onclick = (e) => { if (e.target.id === 'modal') closeModal(); };
+  setupMapLive();
+}
+
+// 확대·이동 구간에서 '아래로' 탭 시 시트(정보)로 부드럽게 이동 → 지도 상호작용에서 빠져나옴
+function setupMapLive() {
+  const next = document.getElementById('mapNext');
+  if (!next) return;
+  next.onclick = () => {
+    const sheet = document.querySelector('.sheet');
+    if (sheet) sheet.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+}
+
+// ── 지역 검색 (드롭다운 대체) ── 내장 주요도시 즉시 매칭 + OpenStreetMap 임의 지역 검색(무료·무키)
+function escHtml(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+
+function shortPlace(r) {
+  const a = r.address || {};
+  const fine = a.neighbourhood || a.quarter || a.suburb || a.village || a.town || a.city_district || a.borough || a.hamlet;
+  const broad = a.city || a.county || a.province || a.state;
+  const parts = [...new Set([fine, broad].filter(Boolean))];
+  if (parts.length) return parts.slice(0, 2).join(' ');
+  return (r.display_name || '').split(',').slice(0, 2).join(', ').trim();
+}
+
+async function searchPlaces(q) {
+  const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&countrycodes=kr&accept-language=ko&limit=8&addressdetails=1&q=${encodeURIComponent(q)}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('search failed');
+  const arr = await res.json();
+  return arr.map((r) => ({ name: shortPlace(r), sub: r.display_name, lat: +r.lat, lon: +r.lon }));
+}
+
+function setupCitySearch(input, panel) {
+  input.value = state.coords?.region || state.city || '';
+  let timer = null, seq = 0;
+  const hide = () => panel.classList.add('hidden');
+  const showItems = (items) => {
+    if (!items.length) { panel.innerHTML = '<div class="city-opt co-hint">검색 결과 없음</div>'; panel.classList.remove('hidden'); return; }
+    panel.innerHTML = items.map((it, i) =>
+      `<div class="city-opt" data-i="${i}" role="option"><span class="co-name">${escHtml(it.name)}</span>${it.sub ? `<span class="co-sub">${escHtml(it.sub)}</span>` : ''}</div>`).join('');
+    panel.classList.remove('hidden');
+    panel.querySelectorAll('.city-opt[data-i]').forEach((el) => { el.onclick = () => choose(items[+el.dataset.i]); });
+  };
+  const choose = (it) => {
+    const near = nearestCity(it.lat, it.lon);
+    state.coords = { lat: it.lat, lon: it.lon, region: it.name, kmaRegion: near.name };
+    state.city = it.name;
+    localStorage.setItem(LS.city, it.name);
+    input.value = it.name;
+    input.blur();
+    hide();
+    load('search');
+  };
+  const run = async (q) => {
+    q = (q || '').trim();
+    if (!q) { hide(); return; }
+    const local = CITIES.filter((c) => c.name.includes(q)).map((c) => ({ name: c.name, sub: '주요 도시', lat: c.lat, lon: c.lon }));
+    showItems(local);
+    const mine = ++seq;
+    try {
+      const found = await searchPlaces(q);
+      if (mine !== seq) return; // 최신 입력만 반영(경쟁 방지)
+      const merged = [...local, ...found.filter((f) => !local.some((l) => l.name === f.name))];
+      showItems(merged.slice(0, 8));
+    } catch { /* 네트워크 실패 시 로컬 결과 유지 */ }
+  };
+  input.oninput = () => { clearTimeout(timer); timer = setTimeout(() => run(input.value), 320); };
+  input.onfocus = () => { if (input.value.trim()) run(input.value); };
+  input.onkeydown = (e) => {
+    if (e.key === 'Enter') { const first = panel.querySelector('.city-opt[data-i]'); if (first) first.click(); }
+    else if (e.key === 'Escape') { hide(); input.blur(); }
+  };
+  document.addEventListener('click', (e) => { if (!e.target.closest('.citysearch')) hide(); });
 }
 
 // 좌표 → 주소 (특별시/도 · 시군구 · 읍면동). OpenStreetMap Nominatim, 무료·무키.
