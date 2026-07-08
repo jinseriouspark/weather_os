@@ -21,7 +21,6 @@ export const config = {
 export function sourceAvailability() {
   return {
     openmeteo: true,
-    yr: true,
     kma: !!config.kmaKey,
     kma_metar: !!config.metarKey,
     google: !!config.googleKey,

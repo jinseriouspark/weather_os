@@ -71,6 +71,7 @@ const LS = {
   preset: 'wx.preset',
   city: 'wx.city',
   onboarded: 'wx.onboarded',
+  lastData: (region) => `wx.last.${region}`, // 지역별 마지막 응답 캐시(즉시 표시용)
   cust: (id) => `wx.cust.${id}`, // 프리셋별 위젯/임계값 커스터마이징
 };
 
@@ -284,7 +285,7 @@ function setAmbient(data) {
   document.body.style.setProperty('--wind-streak', streak.toFixed(3));
 }
 
-const SOURCE_LABELS = { openmeteo: 'Open-Meteo', yr: 'Yr(met.no)', kma: '기상청', kma_metar: 'METAR(공항)', google: 'Google', owm: 'OpenWeather', weatherapi: 'WeatherAPI', apple: 'Apple' };
+const SOURCE_LABELS = { openmeteo: 'Open-Meteo', kma: '기상청', kma_metar: 'METAR(공항)', google: 'Google', owm: 'OpenWeather', weatherapi: 'WeatherAPI', apple: 'Apple' };
 function sourceLabel(k) { return SOURCE_LABELS[k] || k; }
 
 const COMPARE_KEYS = ['temp', 'wind', 'gust', 'precip', 'humidity', 'visibility', 'cloud'];
@@ -355,24 +356,52 @@ function renderWeekly(data) {
 }
 
 // ── 데이터 로드 ──
+// 첫 방문(캐시 없음) 시 빈 화면 대신 스켈레톤 자리표시자
+function showSkeleton(region) {
+  document.getElementById('verdict').innerHTML =
+    `<div class="v-place">${region || ''}</div><div class="v-temp skel-line" style="width:120px;height:76px;margin:6px auto"></div><div class="skel-line" style="width:110px;height:40px;border-radius:980px;margin:6px auto"></div>`;
+  document.getElementById('widgets').innerHTML =
+    Array.from({ length: 6 }).map(() => '<div class="widget skel"></div>').join('');
+  document.getElementById('sources').innerHTML =
+    Array.from({ length: 4 }).map(() => '<div class="scard skel"></div>').join('');
+}
+
 async function load() {
   const city = CITIES.find((c) => c.name === state.city) || CITIES[0];
   const lat = state.coords?.lat ?? city.lat;
   const lon = state.coords?.lon ?? city.lon;
   const region = state.coords?.region ?? city.name;
-  document.getElementById('verdict').innerHTML = '<div class="big">불러오는 중…</div>';
+
+  // 1) 캐시(지난 응답) 즉시 표시 → 기다림 없이 바로 화면. 없으면 스켈레톤.
+  let cached = state.data && !state.isDemo ? state.data : null;
+  if (!cached) {
+    try { cached = JSON.parse(localStorage.getItem(LS.lastData(region))); } catch { cached = null; }
+  }
+  if (cached) {
+    state.data = cached; state.isDemo = false;
+    cached.location = cached.location || {}; cached.location.region = region;
+    render();
+  } else {
+    showSkeleton(region);
+  }
+
+  // 2) 뒤에서 최신 데이터 갱신 (화면은 막지 않음)
+  document.body.classList.add('loading');
   try {
     const res = await fetch(`/api/weather?lat=${lat}&lon=${lon}&region=${encodeURIComponent(region)}`);
-    state.data = await res.json();
-    if (state.data.error) throw new Error(state.data.error);
-    state.data.location.region = region;
-    state.isDemo = false;
+    const fresh = await res.json();
+    if (fresh.error) throw new Error(fresh.error);
+    fresh.location = fresh.location || {}; fresh.location.region = region;
+    state.data = fresh; state.isDemo = false;
+    try { localStorage.setItem(LS.lastData(region), JSON.stringify(fresh)); } catch { /* 용량 초과 무시 */ }
     render();
   } catch (e) {
-    // 백엔드 미연결(예: GitHub Pages 정적 호스팅)일 때 데모 데이터로 미리보기
-    state.data = demoData(region);
-    state.isDemo = true;
-    render();
+    // 백엔드 미연결이고 보여줄 캐시도 없으면 데모로 폴백
+    if (!state.data || state.isDemo) {
+      state.data = demoData(region); state.isDemo = true; render();
+    }
+  } finally {
+    document.body.classList.remove('loading');
   }
 }
 
