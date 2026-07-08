@@ -248,7 +248,10 @@ main { max-width: 1080px; margin: 0 auto; padding: 20px 16px 40px; }
 .preset-opt .po-name { font-weight: 700; font-size: 15px; display: flex; align-items: center; gap: 6px; }
 .preset-opt .po-reco { font-size: 11px; color: #b6ffd4; }
 .preset-opt .po-desc { font-size: 12px; color: var(--ink-soft); margin-top: 5px; }
+.cust-hint { color: var(--ink-soft); font-size: 13px; margin: 4px 0 8px; }
+.cust-group-title { font-size: 12px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; color: var(--ink-soft); margin: 16px 0 4px; }
 .cust-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--glass-hair); }
+.cust-row input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--accent); }
 .cust-row label { flex: 1; }
 .cust-row input[type=number] { width: 70px; background: rgba(255,255,255,0.10); color: var(--ink); border: 1px solid var(--glass-border); border-radius: 8px; padding: 5px 6px; }
 .btn-primary { background: var(--accent); color: #06213f; border: none; border-radius: var(--radius-sm); padding: 11px 18px; font-size: 14px; font-weight: 700; cursor: pointer; margin-top: 12px; transition: filter 0.15s ease, transform 0.1s ease; }

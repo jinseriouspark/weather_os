@@ -83,6 +83,12 @@ const state = {
   data: null,
 };
 
+// ── 전역 UI 환경설정(출처/섹션 표시) ──
+function loadUI() { try { return JSON.parse(localStorage.getItem('wx.ui')) || {}; } catch { return {}; } }
+function saveUI(ui) { localStorage.setItem('wx.ui', JSON.stringify(ui)); }
+function hiddenSources() { return new Set(loadUI().hiddenSources || []); }
+function hiddenSections() { return new Set(loadUI().hiddenSections || []); }
+
 // ── 커스터마이징(프리셋별) 로드/병합 ──
 function loadCust(presetId) {
   try {
@@ -291,12 +297,19 @@ function sourceLabel(k) { return SOURCE_LABELS[k] || k; }
 const COMPARE_KEYS = ['temp', 'wind', 'gust', 'precip', 'humidity', 'visibility', 'cloud'];
 function renderSources(data) {
   const wrap = document.getElementById('sources');
+  const head = document.getElementById('sources-head');
+  // 섹션 통째로 숨김
+  if (hiddenSections().has('sources')) {
+    wrap.classList.add('hidden'); if (head) head.classList.add('hidden'); return;
+  }
+  wrap.classList.remove('hidden'); if (head) head.classList.remove('hidden');
   wrap.innerHTML = '';
   const preset = activePreset();
+  const hideSrc = hiddenSources();
   const colorBy = state.colorBy || 'worst'; // 박스 색 기준: 'worst'(종합) 또는 지표 키
   for (const sid of SOURCE_ORDER) {
     const src = data.sources[sid];
-    if (!src || src.hidden) continue; // 숨김 처리된 출처(예: 인근 공항 METAR 없음)는 렌더 안 함
+    if (!src || src.hidden || hideSrc.has(sid)) continue; // 숨김(자동/사용자) 출처는 렌더 안 함
     const card = document.createElement('div');
     card.className = `scard ${src.available ? '' : 'off'}`;
     let rows = '';
@@ -338,7 +351,7 @@ function renderWeekly(data) {
   const el = document.getElementById('weekly');
   if (!wrap || !el) return;
   const mid = data.mid;
-  if (!mid || !mid.days?.length) { wrap.classList.add('hidden'); return; }
+  if (hiddenSections().has('weekly') || !mid || !mid.days?.length) { wrap.classList.add('hidden'); return; }
   wrap.classList.remove('hidden');
   el.innerHTML = mid.days.map((d) => {
     const dt = new Date(d.date + 'T00:00:00');
@@ -485,10 +498,26 @@ function showCustomize() {
       </div>`;
     })
     .join('');
+  // 출처 카드 토글 (전역)
+  const hideSrc = hiddenSources();
+  const srcRows = SOURCE_ORDER.map((sid) => `<div class="cust-row">
+      <input type="checkbox" data-src="${sid}" ${hideSrc.has(sid) ? '' : 'checked'} />
+      <label>${sourceLabel(sid)}</label>
+    </div>`).join('');
+  // 섹션 토글 (전역)
+  const hideSec = hiddenSections();
+  const SECTIONS = [['sources', '출처별 비교'], ['weekly', '주간 예보']];
+  const secRows = SECTIONS.map(([k, l]) => `<div class="cust-row">
+      <input type="checkbox" data-sec="${k}" ${hideSec.has(k) ? '' : 'checked'} />
+      <label>${l}</label>
+    </div>`).join('');
+
   openModal(`
-    <h2>${base.icon} ${base.name} 대시보드 편집</h2>
-    <p style="color:var(--muted);font-size:13px">표시할 지표를 선택하세요. (프리셋별로 저장됩니다)</p>
-    ${rows}
+    <h2>${base.icon} 대시보드 편집</h2>
+    <p class="cust-hint">보이고 싶은 것만 켜두세요. 지표는 프리셋별, 출처·섹션은 전체 공통으로 저장됩니다.</p>
+    <div class="cust-group-title">지표 (${base.name})</div>${rows}
+    <div class="cust-group-title">출처 카드</div>${srcRows}
+    <div class="cust-group-title">섹션</div>${secRows}
     <button class="btn-primary" id="custSave">저장</button>
     <button class="btn-ghost" id="custReset">기본값</button>
     <button class="btn-ghost" id="custCancel">취소</button>`);
@@ -496,11 +525,16 @@ function showCustomize() {
     const newHidden = [];
     document.querySelectorAll('[data-w]').forEach((cb) => { if (!cb.checked) newHidden.push(cb.dataset.w); });
     localStorage.setItem(LS.cust(state.presetId), JSON.stringify({ ...cust, hidden: newHidden }));
+    const ui = loadUI();
+    ui.hiddenSources = [...document.querySelectorAll('[data-src]')].filter((cb) => !cb.checked).map((cb) => cb.dataset.src);
+    ui.hiddenSections = [...document.querySelectorAll('[data-sec]')].filter((cb) => !cb.checked).map((cb) => cb.dataset.sec);
+    saveUI(ui);
     closeModal();
     render();
   };
   document.getElementById('custReset').onclick = () => {
     localStorage.removeItem(LS.cust(state.presetId));
+    saveUI({});
     closeModal();
     render();
   };
