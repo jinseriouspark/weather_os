@@ -1,5 +1,5 @@
 // Weather Ops 프론트엔드 — 온보딩, 데이터 로드, 대시보드 렌더, 커스터마이징.
-const { INDICATORS, PRESETS, SOURCE_ORDER, VERDICT_TEXT, valueFor, evalVerdict } = window.WX;
+const { ICONS, INDICATORS, PRESETS, SOURCE_ORDER, VERDICT_TEXT, valueFor, evalVerdict } = window.WX;
 
 // 국내 주요 지역 (지오로케이션 폴백 + 네이버 크롤링용 지역명)
 const CITIES = [
@@ -92,6 +92,9 @@ function render() {
   // 출처 비교
   renderSources(data);
 
+  // 날씨·풍속 연동 배경
+  setAmbient(data);
+
   document.getElementById('updated').textContent =
     '업데이트: ' + new Date(data.fetchedAt).toLocaleString('ko-KR');
 }
@@ -107,7 +110,7 @@ function renderWidget(data, preset, key) {
     el.className = `widget ${st}`;
     el.innerHTML = `
       <div class="w-head"><span>${ind.icon} ${ind.label}</span></div>
-      <div class="w-val" style="font-size:18px">🌅 ${sr} / 🌇 ${ss}</div>
+      <div class="w-val" style="font-size:18px">${ICONS.sunrise} ${sr} · ${ICONS.sunset} ${ss}</div>
       <div class="w-sub">${data.sun.isDaylight === false ? '현재 야간' : '현재 주간'}</div>`;
     return el;
   }
@@ -129,6 +132,39 @@ function renderWidget(data, preset, key) {
 function statusDot(st) {
   const c = { go: 'var(--go)', caution: 'var(--caution)', nogo: 'var(--nogo)', na: 'var(--na)' }[st];
   return `<span style="color:${c}">●</span>`;
+}
+
+// ── 앰비언트 배경: 날씨 상태 + 풍속에 따라 페이지 그라데이션 색을 바꾼다 ──
+function setAmbient(data) {
+  const { point } = valueFor(data, 'temp'); // 대표 출처의 현재 시점
+  const wind = valueFor(data, 'wind').value ?? 0;
+  const night = data.sun?.isDaylight === false;
+  const sky = point?.sky || '';
+  const pt = point?.precipType;
+
+  // 풍속이 셀수록 하늘색이 짙고 넓게 번진다 (0m/s→0.30, 14m/s+→0.62)
+  const a = Math.min(0.62, 0.3 + wind * 0.023);
+  const a2 = Math.min(0.5, 0.22 + wind * 0.02);
+
+  let c1, c2;
+  if (point?.lightning || /뇌우/.test(sky)) {
+    c1 = `rgba(124, 58, 237, ${a})`; c2 = `rgba(49, 27, 92, ${a2})`; // 보라(뇌우)
+  } else if (pt === 'snow' || /눈/.test(sky)) {
+    c1 = `rgba(148, 187, 233, ${a * 0.8})`; c2 = `rgba(84, 105, 132, ${a2})`; // 차가운 은청색
+  } else if (pt === 'rain' || pt === 'sleet' || /비|소나기/.test(sky)) {
+    c1 = `rgba(30, 90, 168, ${a})`; c2 = `rgba(14, 50, 74, ${a2})`; // 짙은 비구름 블루
+  } else if (/안개|박무|연무/.test(sky)) {
+    c1 = `rgba(100, 116, 139, ${a * 0.9})`; c2 = `rgba(60, 72, 88, ${a2})`; // 잿빛
+  } else if ((point?.cloudCover ?? 0) >= 70 || /흐림|구름많음/.test(sky)) {
+    c1 = night ? `rgba(51, 65, 92, ${a})` : `rgba(72, 96, 128, ${a})`;
+    c2 = `rgba(30, 41, 59, ${a2})`; // 회청(흐림)
+  } else if (night) {
+    c1 = `rgba(67, 56, 158, ${a * 0.85})`; c2 = `rgba(17, 24, 56, ${a2})`; // 밤하늘 인디고
+  } else {
+    c1 = `rgba(52, 138, 235, ${a})`; c2 = `rgba(240, 177, 90, ${Math.min(0.22, a2 * 0.55)})`; // 맑은 낮: 하늘색 + 은은한 햇살
+  }
+  document.body.style.setProperty('--sky1', c1);
+  document.body.style.setProperty('--sky2', c2);
 }
 
 const SOURCE_LABELS = { openmeteo: 'Open-Meteo', kma: '기상청', kma_metar: 'METAR(공항)', google: 'Google', apple: 'Apple', naver: '네이버' };
@@ -212,7 +248,7 @@ function showOnboarding() {
     .join('');
   openModal(`
     <h2>어떤 업무를 하시나요?</h2>
-    <p style="color:var(--muted);font-size:13px">업무에 맞춰 대시보드 지표와 GO/주의/NO-GO 기준이 달라집니다. 나중에 ⚙️에서 바꿀 수 있어요.</p>
+    <p style="color:var(--muted);font-size:13px">업무에 맞춰 대시보드 지표와 GO/주의/NO-GO 기준이 달라집니다. 나중에 상단의 편집 버튼에서 바꿀 수 있어요.</p>
     <div class="preset-grid">${opts}</div>`);
   document.querySelectorAll('.preset-opt').forEach((b) =>
     b.addEventListener('click', () => {
