@@ -163,11 +163,12 @@ function render() {
   // 출처 비교
   renderSources(data);
 
-  // 내 위치 지도(GPS 사용 시)
-  renderLocMap();
+  // 히어로 배경 지도(위치+바람)
+  renderHeroMap();
 
-  // 바람 지도(Windy)
-  renderWindMap();
+  // 상단 접힘 타이틀(스크롤 시): 지역 · 온도
+  const nav = document.getElementById('navtitle');
+  if (nav) nav.innerHTML = `${data.location.region || state.city} · <b>${temp}</b> <span class="nav-dot ${status}"></span>`;
 
   // 주간 예보(중기)
   renderWeekly(data);
@@ -360,34 +361,12 @@ function renderSources(data) {
   }
 }
 
-// ── 내 위치 지도 (OpenStreetMap 임베드, 키 불필요) — GPS 사용 시 핀 표시 ──
-function renderLocMap() {
-  const wrap = document.getElementById('locmap-wrap');
-  const el = document.getElementById('locmap');
-  if (!wrap || !el) return;
-  // 'GPS 내 위치'를 썼을 때만 확인용 지도 표시 (도시 선택 시엔 숨김)
-  if (!state.coords || state.lat == null) { wrap.classList.add('hidden'); return; }
-  wrap.classList.remove('hidden');
-  const lat = state.lat, lon = state.lon;
-  const key = `${lat.toFixed(4)},${lon.toFixed(4)}`;
-  if (el.dataset.key === key) return;
-  el.dataset.key = key;
-  const d = 0.012;
-  const bbox = `${lon - d},${lat - d},${lon + d},${lat + d}`;
-  el.innerHTML =
-    `<iframe title="내 위치" src="https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${lat},${lon}" loading="lazy" referrerpolicy="no-referrer"></iframe>` +
-    `<div class="locmap-cap">${ICONS.pin} 내 위치 · ${state.coords.region || ''}</div>`;
-}
-
-// ── 바람 지도 (Windy 임베드, 키 불필요) ──
-function renderWindMap() {
-  const wrap = document.getElementById('windmap-wrap');
-  const el = document.getElementById('windmap');
-  if (!wrap || !el) return;
-  if (hiddenSections().has('windmap') || state.lat == null) { wrap.classList.add('hidden'); return; }
-  wrap.classList.remove('hidden');
+// ── 히어로 배경 지도 (Windy 임베드, 위치+바람) — 시각 배경(비상호작용) ──
+function renderHeroMap() {
+  const el = document.getElementById('hero-map');
+  if (!el || state.lat == null) return;
   const key = `${state.lat.toFixed(2)},${state.lon.toFixed(2)}`;
-  if (el.dataset.key === key) return; // 같은 위치면 iframe 재로드 안 함(깜빡임 방지)
+  if (el.dataset.key === key) return; // 같은 위치면 재로드 안 함(깜빡임 방지)
   el.dataset.key = key;
   const q = new URLSearchParams({
     lat: state.lat, lon: state.lon, detailLat: state.lat, detailLon: state.lon,
@@ -395,7 +374,14 @@ function renderWindMap() {
     menu: '', message: '', marker: 'true', calendar: 'now', pressure: 'true',
     type: 'map', location: 'coordinates', metricWind: 'm/s', metricTemp: '°C', radarRange: '-1',
   });
-  el.innerHTML = `<iframe title="바람 지도" src="https://embed.windy.com/embed2.html?${q}" loading="lazy" referrerpolicy="no-referrer"></iframe>`;
+  el.innerHTML = `<iframe title="위치·바람 지도" src="https://embed.windy.com/embed2.html?${q}" loading="lazy" referrerpolicy="no-referrer"></iframe>`;
+}
+
+// 스크롤 시 큰 온도 → 상단 접힘 (Apple Weather 느낌)
+function onHeroScroll() {
+  const hero = document.getElementById('hero');
+  const h = hero ? hero.offsetHeight : 400;
+  document.body.classList.toggle('scrolled', window.scrollY > h * 0.5);
 }
 
 // ── 주간 예보(중기) 렌더 ──
@@ -561,7 +547,7 @@ function showCustomize() {
     </div>`).join('');
   // 섹션 토글 (전역)
   const hideSec = hiddenSections();
-  const SECTIONS = [['sources', '출처별 비교'], ['windmap', '바람 지도'], ['weekly', '주간 예보']];
+  const SECTIONS = [['sources', '출처별 비교'], ['weekly', '주간 예보']];
   const secRows = SECTIONS.map(([k, l]) => `<div class="cust-row">
       <input type="checkbox" data-sec="${k}" ${hideSec.has(k) ? '' : 'checked'} />
       <label>${l}</label>
@@ -734,6 +720,7 @@ function nearestCity(lat, lon) {
 // ── 시작 ──
 applyTheme();
 setupInstall();
+window.addEventListener('scroll', onHeroScroll, { passive: true });
 initControls();
 if (!localStorage.getItem(LS.onboarded)) {
   showOnboarding();

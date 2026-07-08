@@ -74,7 +74,31 @@ body > * { position: relative; z-index: 1; }
 
 main { max-width: 1080px; margin: 0 auto; padding: 20px 16px 40px; }
 
-/* ── 히어로 (Apple Weather 느낌: 지역 → 큰 온도 → 하늘 → 판정) ── */
+/* ── 히어로: 위치+바람 지도 배경 위에 큰 온도 오버레이 ── */
+#hero {
+  position: relative; min-height: 76vh;
+  display: flex; flex-direction: column; justify-content: flex-end;
+  border-radius: 24px; overflow: hidden; margin-bottom: 12px; box-shadow: var(--shadow);
+}
+.hero-map { position: absolute; inset: 0; z-index: 0; background: var(--glass); }
+.hero-map iframe { width: 100%; height: 100%; border: 0; pointer-events: none; } /* 배경(비상호작용) → 페이지 정상 스크롤 */
+.hero-scrim { position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  background: linear-gradient(180deg, rgba(8,12,20,0.28) 0%, rgba(8,12,20,0.12) 40%, rgba(8,12,20,0.55) 78%, rgba(8,12,20,0.82) 100%); }
+.hero-body { position: relative; z-index: 2; padding: 20px 16px 26px; }
+.hero-body .verdict { text-shadow: 0 2px 14px rgba(0,0,0,0.55); }
+.hero-hint { position: absolute; z-index: 2; left: 0; right: 0; bottom: 10px; display: flex; justify-content: center; pointer-events: none; }
+.hero-hint span { width: 12px; height: 12px; border-right: 2px solid rgba(255,255,255,0.7); border-bottom: 2px solid rgba(255,255,255,0.7); transform: rotate(45deg); animation: hintbob 1.6s ease-in-out infinite; }
+@keyframes hintbob { 0%,100% { transform: translateY(0) rotate(45deg); opacity: 0.5; } 50% { transform: translateY(5px) rotate(45deg); opacity: 1; } }
+body.scrolled .hero-hint { opacity: 0; }
+
+/* 상단 접힘 타이틀(스크롤 시 지역·온도가 상단바에 등장) */
+.navtitle { display: none; font-weight: 700; font-size: 15px; letter-spacing: -0.2px; align-items: center; gap: 6px; }
+.navtitle .nav-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.nav-dot.go { background: var(--go); } .nav-dot.caution { background: var(--caution); } .nav-dot.nogo { background: var(--nogo); } .nav-dot.na { background: var(--na); }
+body.scrolled .navtitle { display: inline-flex; }
+body.scrolled .brand-name { display: none; }
+
+/* ── 히어로 내부 (지역 → 큰 온도 → 하늘 → 판정) ── */
 .verdict {
   text-align: center;
   padding: 26px 18px 30px;

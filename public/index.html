@@ -17,7 +17,7 @@
 <body>
   <div id="loadbar" aria-hidden="true"></div>
   <header class="topbar">
-    <div class="brand"><img class="brand-ico" src="icons/icon-192.png" alt="" width="22" height="22" /> Weather Ops</div>
+    <div class="brand"><img class="brand-ico" src="icons/icon-192.png" alt="" width="22" height="22" /> <span class="brand-name">Weather Ops</span><span id="navtitle" class="navtitle"></span></div>
     <div class="controls">
       <select id="presetSelect" title="업무 프리셋"></select>
       <select id="citySelect" title="지역"></select>
@@ -31,9 +31,20 @@
   </header>
 
   <main id="app">
-    <section id="verdict" class="verdict"></section>
-    <div id="warnbar" class="warnbar"></div>
-    <section id="locmap-wrap" class="hidden"><div id="locmap" class="locmap"></div></section>
+    <!-- 히어로: 위치+바람 지도 배경 위에 큰 온도/판정 오버레이 (스크롤하면 상단으로 접힘) -->
+    <section id="hero">
+      <div id="hero-map" class="hero-map" aria-hidden="true"></div>
+      <div class="hero-scrim"></div>
+      <div class="hero-body">
+        <section id="verdict" class="verdict"></section>
+        <div id="warnbar" class="warnbar"></div>
+      </div>
+      <div class="hero-hint" aria-hidden="true"><span></span></div>
+    </section>
+
+    <h2 class="section-title">바람 · 핵심 지표</h2>
+    <section id="widgets" class="widgets"></section>
+
     <div class="section-head" id="sources-head">
       <h2 class="section-title">출처별 비교</h2>
       <label class="colorby-label">색상 기준
@@ -41,12 +52,7 @@
       </label>
     </div>
     <section id="sources" class="sources"></section>
-    <h2 class="section-title">핵심 지표</h2>
-    <section id="widgets" class="widgets"></section>
-    <section id="windmap-wrap" class="hidden">
-      <h2 class="section-title">바람 지도</h2>
-      <div id="windmap" class="windmap"></div>
-    </section>
+
     <section id="weekly-wrap" class="hidden">
       <h2 class="section-title">주간 예보 · 3~10일 후 (기상청 중기)</h2>
       <div id="weekly" class="weekly"></div>
