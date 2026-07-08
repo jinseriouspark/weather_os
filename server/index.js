@@ -91,9 +91,11 @@ const TRACK_EVENTS = new Set(['app_open', 'pwa_install', 'pwa_installed']);
 app.post('/api/track', (req, res) => {
   const type = String(req.body?.event || '');
   if (!TRACK_EVENTS.has(type)) return res.status(400).json({ error: 'unknown event' });
+  const s = (v) => (v ? String(v).slice(0, 40) : null);
   logEvent(type, {
     mode: req.body?.mode === 'standalone' ? 'standalone' : 'browser', // 설치형 vs 브라우저
-    place: req.body?.place ? String(req.body.place).slice(0, 40) : null,
+    place: s(req.body?.place),
+    source: s(req.body?.source), medium: s(req.body?.medium), campaign: s(req.body?.campaign), // 광고 채널(UTM)
   });
   res.json({ ok: true });
 });

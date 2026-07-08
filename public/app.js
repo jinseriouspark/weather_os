@@ -856,13 +856,29 @@ function applyTheme() {
 // ── PWA/사용 추적 (1st-party 비콘) ──
 // 서드파티 트래커 없이 우리 서버(/api/track)로 이벤트만 보낸다 → 기존 로그(/api/stats·Notion)에 합류.
 //   app_open: 앱 열림(설치형 standalone vs 브라우저 구분), pwa_install: 홈 설치 완료.
+// 광고 캠페인 추적: URL의 utm_* 를 최초 유입 시점에 저장(first-touch)해 계속 재사용.
+//   광고 링크에 ?utm_source=meta&utm_medium=cpc&utm_campaign=launch 를 붙이면
+//   "어느 채널이 유입/설치를 만들었나"를 /api/stats·GA에서 볼 수 있다.
+function getUTM() {
+  try {
+    const p = new URLSearchParams(location.search);
+    const cur = {};
+    for (const k of ['utm_source', 'utm_medium', 'utm_campaign']) {
+      const v = p.get(k); if (v) cur[k.slice(4)] = v.slice(0, 40);
+    }
+    if (Object.keys(cur).length) { localStorage.setItem('wx.utm', JSON.stringify(cur)); return cur; }
+    return JSON.parse(localStorage.getItem('wx.utm') || '{}');
+  } catch { return {}; }
+}
+
 function track(event) {
   try {
     const standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
     const mode = standalone ? 'standalone' : 'browser';
     const place = state.coords?.region || state.city || null;
+    const utm = getUTM();
     // 1) 1st-party 로그(/api/track → /api/stats·Notion)
-    const body = JSON.stringify({ event, mode, place });
+    const body = JSON.stringify({ event, mode, place, ...utm });
     if (navigator.sendBeacon) {
       navigator.sendBeacon('/api/track', new Blob([body], { type: 'application/json' }));
     } else {

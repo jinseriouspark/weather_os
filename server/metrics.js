@@ -12,7 +12,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const LOG_PATH = process.env.METRICS_LOG || path.join(__dirname, '..', 'metrics.log');
 
 // 메모리 카운터(빠른 /api/stats 응답용) — 부팅 시 기존 로그에서 복원
-const counters = { total: 0, byType: {}, byDay: {}, byVia: {}, byRegion: {} };
+const counters = { total: 0, byType: {}, byDay: {}, byVia: {}, byRegion: {}, byUtm: {} };
 
 function bump(e) {
   const type = e.type;
@@ -28,6 +28,8 @@ function bump(e) {
     const rg = e.place || e.region;
     if (rg) counters.byRegion[rg] = (counters.byRegion[rg] || 0) + 1;
   }
+  // 광고 채널(UTM source)별 집계 — 어느 채널이 유입/설치를 만들었나
+  if (e.source) counters.byUtm[e.source] = (counters.byUtm[e.source] || 0) + 1;
 }
 
 // 부팅 시 기존 로그 적재 (있으면)
@@ -78,6 +80,7 @@ export function getStats() {
     logins: counters.byType.login || 0,
     byType: counters.byType,
     byVia: counters.byVia,       // 접근경로별: city/geo/search/refresh
+    byUtm: counters.byUtm,       // 광고 채널(UTM source)별 유입
     topRegions,                  // 인기 지역
     last7days: last7,
     logPath: LOG_PATH,
