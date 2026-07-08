@@ -163,6 +163,9 @@ function render() {
   // 출처 비교
   renderSources(data);
 
+  // 바람 방향(항덕용: 활주로/바람 감각) — 첫 내용
+  renderWindLead(data, preset);
+
   // 히어로 배경 지도(위치+바람)
   renderHeroMap();
 
@@ -361,6 +364,38 @@ function renderSources(data) {
   }
 }
 
+// ── 바람 방향 리드 카드 (나침반 + 풍속/돌풍) — 스크롤 시 첫 내용 ──
+const DIR16 = ['북', '북북동', '북동', '동북동', '동', '동남동', '남동', '남남동', '남', '남남서', '남서', '서남서', '서', '서북서', '북서', '북북서'];
+function renderWindLead(data, preset) {
+  const el = document.getElementById('windlead');
+  if (!el) return;
+  const w = valueFor(data, 'wind');
+  const p = w.point || {};
+  const dir = p.windDir;
+  const spd = w.value;
+  const gust = valueFor(data, 'gust').value;
+  const st = evalIndicator(preset, 'wind', spd);
+  const dirText = p.windDirText || (dir != null ? DIR16[Math.round((dir % 360) / 22.5) % 16] : '—');
+  // 바람이 불어오는 방향(from) → 화살표는 불어가는 쪽(downwind)을 가리키게 회전
+  const rot = dir != null ? dir + 180 : 0;
+  el.innerHTML = `
+    <div class="wl-card ${st}">
+      <div class="wl-compass" style="--rot:${rot}deg">
+        <svg viewBox="0 0 120 120" aria-hidden="true">
+          <circle cx="60" cy="60" r="54" class="wl-ring"/>
+          <text x="60" y="17" class="wl-nsew">N</text><text x="108" y="65" class="wl-nsew">E</text>
+          <text x="60" y="112" class="wl-nsew">S</text><text x="14" y="65" class="wl-nsew">W</text>
+          <g class="wl-arrow"><path d="M60 26 L70 62 L60 54 L50 62 Z"/><line x1="60" y1="54" x2="60" y2="94"/></g>
+        </svg>
+      </div>
+      <div class="wl-info">
+        <div class="wl-dir">${dir != null ? dirText + '풍' : '바람 정보 없음'}</div>
+        <div class="wl-spd">${spd != null ? spd : '—'}<span>m/s</span></div>
+        <div class="wl-gust">${gust != null ? `돌풍 ${gust} m/s` : ''}${dir != null ? ` · ${dir}°` : ''}</div>
+      </div>
+    </div>`;
+}
+
 // ── 히어로 배경 지도 (Windy 임베드, 위치+바람) — 시각 배경(비상호작용) ──
 function renderHeroMap() {
   const el = document.getElementById('hero-map');
@@ -377,11 +412,18 @@ function renderHeroMap() {
   el.innerHTML = `<iframe title="위치·바람 지도" src="https://embed.windy.com/embed2.html?${q}" loading="lazy" referrerpolicy="no-referrer"></iframe>`;
 }
 
-// 스크롤 시 큰 온도 → 상단 접힘 (Apple Weather 느낌)
+// 스크롤 시 히어로 요약이 압축되며 위로 밀림 → 상단바에 지역·온도 접힘 (Apple Weather 느낌)
 function onHeroScroll() {
   const hero = document.getElementById('hero');
-  const h = hero ? hero.offsetHeight : 400;
-  document.body.classList.toggle('scrolled', window.scrollY > h * 0.5);
+  if (!hero) return;
+  const h = hero.offsetHeight;
+  const p = Math.max(0, Math.min(1, window.scrollY / (h * 0.6))); // 진행률 0→1
+  const body = hero.querySelector('.hero-body');
+  if (body) {
+    body.style.transform = `translateY(${(-p * 34).toFixed(1)}px) scale(${(1 - p * 0.22).toFixed(3)})`;
+    body.style.opacity = (1 - p * 0.9).toFixed(3);
+  }
+  document.body.classList.toggle('scrolled', p > 0.45);
 }
 
 // ── 주간 예보(중기) 렌더 ──
