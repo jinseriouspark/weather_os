@@ -135,6 +135,15 @@ body.map-live .hero-map iframe { pointer-events: auto; }   /* 핀치·더블탭�
   color: #fff; font-size: 14px; font-weight: 700; cursor: pointer; box-shadow: 0 8px 24px rgba(0,0,0,0.45); }
 body.map-live .map-next { display: inline-flex; }
 .map-next:active { transform: translateX(-50%) scale(0.97); }
+/* 지도 확대/축소 버튼 (조작 구간에서만) */
+.map-zoom { position: fixed; right: 14px; top: 46%; transform: translateY(-50%); z-index: 40;
+  display: none; flex-direction: column; gap: 8px; }
+body.map-live .map-zoom { display: flex; }
+.map-zoom button { width: 46px; height: 46px; border-radius: 14px; font-size: 24px; font-weight: 700;
+  color: #fff; border: 1px solid rgba(255,255,255,0.22); background: rgba(12,18,28,0.82);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); cursor: pointer; line-height: 1;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.4); }
+.map-zoom button:active { transform: scale(0.94); }
 
 /* 바람 지도 배경 OFF: 고정 지도·스크림·리빌 제거하고 히어로를 일반 어두운 패널로 */
 body.no-heromap .hero-map, body.no-heromap .hero-scrim, body.no-heromap .map-reveal { display: none; }

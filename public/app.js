@@ -417,17 +417,20 @@ function applyHeroMap() {
   document.body.classList.toggle('no-heromap', hiddenSections().has('heromap'));
 }
 
+// 바람 지도 줌 레벨(시·군·구 상세도). +/− 버튼으로 조절 → Windy를 더 깊은 줌으로 재로드.
+let heroZoom = 8;
+
 // ── 히어로 배경 지도 (Windy 임베드, 위치+바람) — 시각 배경(비상호작용) ──
 function renderHeroMap() {
   if (hiddenSections().has('heromap')) return;
   const el = document.getElementById('hero-map');
   if (!el || state.lat == null) return;
-  const key = `${state.lat.toFixed(2)},${state.lon.toFixed(2)}`;
-  if (el.dataset.key === key) return; // 같은 위치면 재로드 안 함(깜빡임 방지)
+  const key = `${state.lat.toFixed(2)},${state.lon.toFixed(2)}@${heroZoom}`;
+  if (el.dataset.key === key) return; // 같은 위치·줌이면 재로드 안 함(깜빡임 방지)
   el.dataset.key = key;
   const q = new URLSearchParams({
     lat: state.lat, lon: state.lon, detailLat: state.lat, detailLon: state.lon,
-    zoom: '7', level: 'surface', overlay: 'wind', product: 'ecmwf',
+    zoom: String(heroZoom), level: 'surface', overlay: 'wind', product: 'ecmwf',
     menu: '', message: '', marker: '', calendar: '', pressure: '',
     type: 'map', location: 'coordinates', metricWind: 'm/s', metricTemp: '°C', radarRange: '-1',
   });
@@ -734,34 +737,53 @@ function initControls() {
   setupMapLive();
 }
 
-// 확대·이동 구간에서 '아래로' 탭 시 시트(정보)로 부드럽게 이동 → 지도 상호작용에서 빠져나옴
+// 확대·이동 구간: '아래로' 탭 시 시트로 이동, +/− 로 지도 줌(시군구 상세)
 function setupMapLive() {
   const next = document.getElementById('mapNext');
-  if (!next) return;
-  next.onclick = () => {
+  if (next) next.onclick = () => {
     const sheet = document.querySelector('.sheet');
     if (sheet) sheet.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
+  const zi = document.getElementById('mapZoomIn');
+  const zo = document.getElementById('mapZoomOut');
+  if (zi) zi.onclick = () => { heroZoom = Math.min(12, heroZoom + 1); renderHeroMap(); };
+  if (zo) zo.onclick = () => { heroZoom = Math.max(5, heroZoom - 1); renderHeroMap(); };
 }
 
 // ── 지역 검색 (드롭다운 대체) ── 내장 주요도시 즉시 매칭 + OpenStreetMap 임의 지역 검색(무료·무키)
 function escHtml(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 
+// 시군구 → 읍면동 순으로 라벨 구성 (예: "보령시 궁촌동", "중구 오장동")
 function shortPlace(r) {
   const a = r.address || {};
-  const fine = a.neighbourhood || a.quarter || a.suburb || a.village || a.town || a.city_district || a.borough || a.hamlet;
-  const broad = a.city || a.county || a.province || a.state;
-  const parts = [...new Set([fine, broad].filter(Boolean))];
-  if (parts.length) return parts.slice(0, 2).join(' ');
-  return (r.display_name || '').split(',').slice(0, 2).join(', ').trim();
+  const sigungu = a.city || a.county;                                   // 시/군
+  const gu = a.borough || a.city_district;                              // (자치)구
+  const eupmyeondong = a.town || a.village || a.suburb || a.quarter || a.neighbourhood; // 읍/면/동
+  const parts = [...new Set([sigungu, gu, eupmyeondong].filter(Boolean))];
+  if (parts.length) return parts.join(' ');
+  return (a.province || a.state || r.name || (r.display_name || '').split(',')[0] || '').trim();
 }
 
+// 지명(행정구역)만: 상호·건물 등 POI는 제외
+const PLACE_CLASSES = new Set(['place', 'boundary']);
 async function searchPlaces(q) {
-  const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&countrycodes=kr&accept-language=ko&limit=8&addressdetails=1&q=${encodeURIComponent(q)}`;
+  // layer=address → 상호(POI) 제외하고 주소·행정구역만
+  const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&countrycodes=kr&accept-language=ko&limit=10&addressdetails=1&layer=address&q=${encodeURIComponent(q)}`;
   const res = await fetch(url);
   if (!res.ok) throw new Error('search failed');
   const arr = await res.json();
-  return arr.map((r) => ({ name: shortPlace(r), sub: r.display_name, lat: +r.lat, lon: +r.lon }));
+  const places = arr.filter((r) => PLACE_CLASSES.has(r.class));
+  const use = places.length ? places : arr;                            // 전부 걸러지면 원본이라도 사용
+  const seen = new Set();
+  const out = [];
+  for (const r of use) {
+    const name = shortPlace(r);
+    const key = `${name}|${(+r.lat).toFixed(2)},${(+r.lon).toFixed(2)}`;
+    if (!name || seen.has(key)) continue;
+    seen.add(key);
+    out.push({ name, sub: r.address?.province || r.address?.state || '', lat: +r.lat, lon: +r.lon });
+  }
+  return out;
 }
 
 function setupCitySearch(input, panel) {
