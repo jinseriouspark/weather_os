@@ -112,8 +112,23 @@ main { max-width: 1080px; margin: 0 auto; padding: 20px 16px 40px; }
   -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
 }
 
-.meta { color: var(--ink-soft); font-size: 13px; margin-bottom: 16px; text-align: center; text-shadow: 0 1px 4px rgba(0,0,0,0.25); }
+.meta { color: var(--ink-faint); font-size: 12px; text-align: center; }
 .meta .warn { color: var(--caution); }
+
+/* 기상특보 칩 (판정 아래) */
+.warnbar { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 0 0 18px; }
+.warnbar.hidden { display: none; }
+.warn-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 14px; font-weight: 700; letter-spacing: 0.2px;
+  padding: 8px 15px; border-radius: 980px;
+  -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur);
+  border: 1px solid; box-shadow: var(--shadow);
+}
+.warn-chip .wc-ico { font-size: 13px; }
+.warn-chip.caution { background: rgba(255,207,74,0.18); border-color: rgba(255,207,74,0.55); color: #ffe39a; }
+.warn-chip.nogo { background: rgba(255,107,94,0.2); border-color: rgba(255,107,94,0.6); color: #ffc7c0; animation: warnpulse 1.8s ease-in-out infinite; }
+@keyframes warnpulse { 0%,100% { box-shadow: 0 0 0 0 rgba(255,107,94,0.35); } 50% { box-shadow: 0 0 0 6px rgba(255,107,94,0); } }
 
 /* ── 유리 카드 공통 ── */
 .widget, .scard, .panel-card {

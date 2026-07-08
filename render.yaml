@@ -19,8 +19,6 @@ services:
         sync: false
       - key: KMA_METAR_KEY
         sync: false
-      - key: GOOGLE_WEATHER_KEY
-        sync: false
       - key: APPLE_TEAM_ID
         sync: false
       - key: APPLE_KEY_ID

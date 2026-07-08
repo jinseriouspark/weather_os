@@ -135,6 +135,15 @@ function render() {
         : '<span>모든 지표 양호</span>'
     }</div>`;
 
+  // 기상특보 칩 (판정 아래 별도 표시)
+  const wb = document.getElementById('warnbar');
+  if (wb) {
+    const items = data.warnings?.items || [];
+    wb.innerHTML = items.map((w) =>
+      `<span class="warn-chip ${w.level}"><span class="wc-ico">⚠</span>${w.kind}${w.grade}</span>`).join('');
+    wb.classList.toggle('hidden', !items.length);
+  }
+
   // 메타(키 없는 출처 안내)
   const meta = document.getElementById('meta');
   const missing = data.meta.missingKeys;
@@ -291,7 +300,7 @@ function setAmbient(data) {
   document.body.style.setProperty('--wind-streak', streak.toFixed(3));
 }
 
-const SOURCE_LABELS = { openmeteo: 'Open-Meteo', kma: '기상청', kma_metar: 'METAR(공항)', google: 'Google', owm: 'OpenWeather', apple: 'Apple' };
+const SOURCE_LABELS = { openmeteo: 'Open-Meteo', kma: '기상청', kma_metar: 'METAR(공항)', owm: 'OpenWeather', apple: 'Apple' };
 function sourceLabel(k) { return SOURCE_LABELS[k] || k; }
 
 const COMPARE_KEYS = ['temp', 'wind', 'gust', 'precip', 'humidity', 'visibility', 'cloud'];
@@ -436,7 +445,7 @@ function demoData(region) {
     location: { region: region || '서울' },
     fetchedAt: new Date().toISOString(),
     sun: { sunrise: '2026-06-18T05:11', sunset: '2026-06-18T19:56', isDaylight: true },
-    meta: { enabled: ['openmeteo', 'kma', 'google', 'apple'], missingKeys: [] },
+    meta: { enabled: ['openmeteo', 'kma', 'apple'], missingKeys: [] },
     warnings: { region: region || '서울', level: 'caution', items: [{ kind: '강풍', grade: '주의보', level: 'caution', title: '강풍주의보' }] },
     mid: { region: region || '서울', days: [
       { date: '2026-06-21', offset: 3, skyAm: '구름많음', skyPm: '흐림', rainAm: 30, rainPm: 60, tempMin: 21, tempMax: 28 },
@@ -452,7 +461,6 @@ function demoData(region) {
       openmeteo: { label: 'Open-Meteo', available: true, current: { temp: 24, feelsLike: 25, humidity: 62, windSpeed: 6, windGust: 11, windDir: 250, windDirText: '서남서', precipProb: 35, precipAmount: 0, lightning: false, visibility: 9, cloudCover: 85, sky: '흐림' } },
       kma: { label: '기상청', available: true, current: { temp: 24, humidity: 60, windSpeed: 6, windDir: 250, windDirText: '서남서', precipProb: 30, precipAmount: 0, precipType: 'none', sky: '흐림', lightning: false, wave: 0.4 } },
       kma_metar: { label: 'METAR(공항) 김포(RKSS)', available: true, current: { temp: 24, dewPoint: 18, humidity: 69, windSpeed: 4.1, windGust: 9.8, windDir: 230, windDirText: '남서', visibility: 10, cloudCover: 75, ceiling: 760, sky: '구름많음', station: 'RKSS', distanceKm: 17, airport: { name: '김포', icao: 'RKSS', lat: 37.5583, lon: 126.7906, distanceKm: 17 } } },
-      google: { label: 'Google', available: true, current: { temp: 25, feelsLike: 26, humidity: 58, windSpeed: 6, windGust: 12, windDir: 248, windDirText: '서남서', precipProb: 40, visibility: 8, cloudCover: 80, sky: '대체로 흐림' } },
       apple: { label: 'Apple', available: false, reason: '준비중' },
     },
   };

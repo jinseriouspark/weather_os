@@ -217,7 +217,7 @@ const PRESETS = {
 
 // ── 공유 판정 로직 (대시보드 + 팀 페이지 공통) ───────────────
 // 출처 우선순위: 대표 출처에 값이 없으면 다음 출처로 보완.
-const SOURCE_ORDER = ['kma', 'kma_metar', 'openmeteo', 'owm', 'google', 'apple'];
+const SOURCE_ORDER = ['kma', 'kma_metar', 'openmeteo', 'owm', 'apple'];
 const WORSE = { go: 0, caution: 1, nogo: 2, na: -1 };
 const VERDICT_TEXT = { go: 'GO', caution: '주의', nogo: 'NO-GO', na: '데이터 없음' };
 
@@ -255,14 +255,10 @@ function evalVerdict(data, preset) {
     }
     if (WORSE[st] > WORSE[worst]) worst = st;
   }
-  // 기상특보 반영: 경보=NO-GO, 주의보=주의 (기상청 공식 신호이므로 최우선 격상)
+  // 기상특보 반영: 경보=NO-GO, 주의보=주의 (판정만 격상, 표시는 별도 특보 칩으로)
   const warn = data.warnings;
   if (warn && warn.level && (warn.items || []).length) {
-    const st = warn.level; // 'nogo' | 'caution'
-    for (const w of warn.items) {
-      reasons.unshift({ label: `⚠️ ${w.kind}${w.grade}`, st: w.level });
-    }
-    if (WORSE[st] > WORSE[worst]) worst = st;
+    if (WORSE[warn.level] > WORSE[worst]) worst = warn.level;
   }
   return { status: worst, reasons };
 }
