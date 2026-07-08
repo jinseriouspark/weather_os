@@ -63,7 +63,7 @@ function mapPoint(o) {
 
 export async function fetchApple(lat, lon, cfg) {
   if (!cfg?.teamId || !cfg?.keyId || !cfg?.serviceId || !cfg?.privateKey) {
-    return unavailable(LABEL, '키 필요');
+    return unavailable(LABEL, '준비중');
   }
   try {
     const token = buildToken(cfg);
