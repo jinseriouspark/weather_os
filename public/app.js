@@ -319,7 +319,7 @@ function setAmbient(data) {
   document.body.style.setProperty('--wind-streak', streak.toFixed(3));
 }
 
-const SOURCE_LABELS = { openmeteo: 'Open-Meteo', kma: '기상청 (네이버)', kma_metar: 'METAR(공항)', owm: 'OpenWeather', apple: 'Apple' };
+const SOURCE_LABELS = { openmeteo: 'Open-Meteo', kma: '기상청 (네이버)', kma_metar: 'METAR (공항)', owm: 'OpenWeather', apple: 'Apple' };
 function sourceLabel(k) { return SOURCE_LABELS[k] || k; }
 
 const COMPARE_KEYS = ['temp', 'wind', 'gust', 'precip', 'humidity', 'visibility', 'cloud'];

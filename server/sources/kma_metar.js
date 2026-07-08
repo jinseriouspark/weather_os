@@ -9,7 +9,7 @@
 import { makePoint, sourceResult, unavailable, degToCompass } from '../util/normalize.js';
 import { rankAirports, MAJOR_ICAO, extractRawMetar, parseMetar, parseIwxxm } from '../util/metar.js';
 
-const LABEL = 'METAR(공항)';
+const LABEL = 'METAR (공항)';
 
 // authKey/icao를 끼워 넣을 기본 URL 템플릿. KMA_METAR_URL 로 덮어쓸 수 있다.
 const DEFAULT_URL =
