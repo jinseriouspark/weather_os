@@ -61,9 +61,11 @@ async function fetchOne(ap, key, urlTemplate) {
     sky: parsed.sky,
   });
   current.windDirText = degToCompass(current.windDir);
-  current.station = parsed.station;
+  current.station = parsed.station || ap.icao;
   current.distanceKm = ap.distanceKm;
   current.rawMetar = parsed.raw;
+  // 실제 사용한 공항 정보 (프론트에서 위치·거리 표시)
+  current.airport = { name: ap.name, icao: ap.icao, lat: ap.lat, lon: ap.lon, distanceKm: ap.distanceKm };
   return current;
 }
 

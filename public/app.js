@@ -308,6 +308,11 @@ function renderSources(data) {
         rows += `<div class="row${hot}"><span class="k">${ind.icon} ${ind.label}</span><span class="rowval">${disp}</span></div>`;
       }
       if (!rows) rows = '<div class="reason">표시할 값 없음</div>';
+      // METAR: 실제 관측 공항 이름·ICAO·거리·좌표 표시
+      const ap = src.current.airport;
+      if (ap) {
+        rows = `<div class="src-note">${ICONS.pin} ${ap.name}공항 (${ap.icao}) · ${ap.distanceKm}km · ${ap.lat.toFixed(2)}, ${ap.lon.toFixed(2)}</div>` + rows;
+      }
       // 선택 기준의 위험도로 카드 박스를 칠한다
       const score = colorBy === 'worst'
         ? sourceSeverity(preset, src.current)
@@ -354,6 +359,7 @@ function demoData(region) {
     sources: {
       openmeteo: { label: 'Open-Meteo', available: true, current: { temp: 24, feelsLike: 25, humidity: 62, windSpeed: 6, windGust: 11, windDir: 250, windDirText: '서남서', precipProb: 35, precipAmount: 0, lightning: false, visibility: 9, cloudCover: 85, sky: '흐림' } },
       kma: { label: '기상청', available: true, current: { temp: 24, humidity: 60, windSpeed: 6, windDir: 250, windDirText: '서남서', precipProb: 30, precipAmount: 0, precipType: 'none', sky: '흐림', lightning: false, wave: 0.4 } },
+      kma_metar: { label: 'METAR(공항) 김포(RKSS)', available: true, current: { temp: 24, dewPoint: 18, humidity: 69, windSpeed: 4.1, windGust: 9.8, windDir: 230, windDirText: '남서', visibility: 10, cloudCover: 75, ceiling: 760, sky: '구름많음', station: 'RKSS', distanceKm: 17, airport: { name: '김포', icao: 'RKSS', lat: 37.5583, lon: 126.7906, distanceKm: 17 } } },
       google: { label: 'Google', available: true, current: { temp: 25, feelsLike: 26, humidity: 58, windSpeed: 6, windGust: 12, windDir: 248, windDirText: '서남서', precipProb: 40, visibility: 8, cloudCover: 80, sky: '대체로 흐림' } },
       apple: { label: 'Apple', available: true, current: { temp: 24, feelsLike: 25, humidity: 61, windSpeed: 6, windGust: 11, windDir: 252, windDirText: '서남서', precipProb: 33, visibility: 9, cloudCover: 82, sky: 'Cloudy' } },
     },
