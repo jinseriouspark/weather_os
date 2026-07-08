@@ -116,6 +116,89 @@ export function extractRawMetar(body, icao) {
 }
 
 /**
+ * KMA AmmIwxxmService 응답(IWXXM 구조화 XML)을 파싱.
+ * 원문 METAR 텍스트가 아니라 <iwxxm:*> 태그에서 값을 직접 뽑는다.
+ * @param {string} xml 응답 본문
+ * @returns {object|null} parseMetar 와 동일 형태
+ */
+export function parseIwxxm(xml) {
+  if (!xml || !/iwxxm:/.test(xml)) return null;
+  const num = (re) => { const m = re.exec(xml); return m ? Number(m[1]) : null; };
+  // 값+단위를 함께 뽑아 필요 시 단위 변환
+  const withUom = (tag) => {
+    const m = new RegExp(`<iwxxm:${tag}[^>]*\\buom="([^"]+)"[^>]*>(-?[\\d.]+)<`).exec(xml);
+    return m ? { uom: m[1], val: Number(m[2]) } : null;
+  };
+  const spdToMs = (o) => (o == null ? null : /kn/i.test(o.uom) ? ktToMs(o.val) : mpsRound(o.val));
+
+  const out = {
+    time: null, temp: null, dewPoint: null, humidity: null,
+    windSpeed: null, windGust: null, windDir: null,
+    visibility: null, cloudCover: null, ceiling: null,
+    precipType: null, lightning: null, sky: null,
+    station: null, raw: null,
+  };
+
+  out.station =
+    /<aixm:locationIndicatorICAO>([A-Z]{4})<\/aixm:locationIndicatorICAO>/.exec(xml)?.[1] ||
+    /<aixm:designator>([A-Z]{4})<\/aixm:designator>/.exec(xml)?.[1] || null;
+
+  // 관측시각(observationTime 우선, 없으면 issueTime)
+  const obsBlock = /<iwxxm:observationTime>([\s\S]*?)<\/iwxxm:observationTime>/.exec(xml)?.[1] || xml;
+  out.time = /<gml:timePosition>([^<]+)<\/gml:timePosition>/.exec(obsBlock)?.[1] || null;
+
+  out.temp = num(/<iwxxm:airTemperature[^>]*>(-?[\d.]+)</);
+  out.dewPoint = num(/<iwxxm:dewpointTemperature[^>]*>(-?[\d.]+)</);
+  out.windDir = num(/<iwxxm:meanWindDirection[^>]*>(-?[\d.]+)</);
+  out.windSpeed = spdToMs(withUom('meanWindSpeed'));
+  out.windGust = spdToMs(withUom('windGustSpeed'));
+
+  const vis = withUom('prevailingVisibility');
+  if (vis) out.visibility = vis.val >= 9999 ? 10 : Math.round((vis.val / 1000) * 10) / 10;
+
+  const cavok = /cloudAndVisibilityOK="true"/.test(xml);
+  if (cavok) { out.visibility = out.visibility ?? 10; out.cloudCover = 0; }
+
+  // 구름층: amount(FEW/SCT/BKN/OVC) + base(ft) 여러 층
+  const clouds = [];
+  const layerRe = /<iwxxm:CloudLayer>([\s\S]*?)<\/iwxxm:CloudLayer>/g;
+  let lm;
+  while ((lm = layerRe.exec(xml))) {
+    const seg = lm[1];
+    const amt = /CloudAmountReportedAtAerodrome\/([A-Z]+)/.exec(seg)?.[1];
+    const baseM = new RegExp('<iwxxm:base[^>]*\\buom="\\[ft_i\\]"[^>]*>([\\d.]+)<').exec(seg);
+    if (amt) clouds.push({ amount: amt, heightM: baseM ? Math.round(Number(baseM[1]) * FT_TO_M) : null });
+  }
+  // 수직시정(안개 등) → 운고로 취급
+  const vv = new RegExp('<iwxxm:verticalVisibility[^>]*>([\\d.]+)<').exec(xml);
+
+  // 현재일기 코드 (RA, SN, TS, FG …)
+  const wxTokens = [];
+  const wxRe = /<iwxxm:presentWeather[^>]*xlink:href="[^"]*\/([A-Z+-]+)"/g;
+  let wm;
+  while ((wm = wxRe.exec(xml))) wxTokens.push(wm[1]);
+
+  // 운고: 최저 BKN/OVC 층
+  const ceil = clouds.filter((c) => (c.amount === 'BKN' || c.amount === 'OVC') && c.heightM != null)
+    .sort((a, b) => a.heightM - b.heightM)[0];
+  if (ceil) out.ceiling = ceil.heightM;
+  else if (vv) out.ceiling = Math.round(Number(vv[1]) * 0.3048);
+
+  if (out.cloudCover == null) {
+    if (/\/(NSC|NCD|SKC|CLR)/.test(xml) && !clouds.length) out.cloudCover = 0;
+    else out.cloudCover = clouds.reduce((m, c) => Math.max(m, CLOUD_COVER[c.amount] ?? 0), 0);
+  }
+
+  const wx = decodeWeather(cavok ? [] : wxTokens, clouds);
+  out.precipType = wx.precipType;
+  out.lightning = wx.lightning;
+  out.sky = cavok ? '맑음' : wx.sky;
+  out.humidity = relHumidity(out.temp, out.dewPoint);
+
+  return out.temp != null || out.windSpeed != null || out.visibility != null ? out : null;
+}
+
+/**
  * 원문 METAR 문자열을 정규화 포인트(부분)로 파싱.
  * @param {string} raw 예: "RKSI 191200Z 09008G15KT 9999 FEW030 SCT100 24/18 Q1011 NOSIG"
  * @returns {object|null} { time, temp, dewPoint, humidity, windSpeed, windGust, windDir,

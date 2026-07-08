@@ -5,11 +5,19 @@ import { fetchKma } from './sources/kma.js';
 import { fetchKmaMetar } from './sources/kma_metar.js';
 import { fetchGoogle } from './sources/google.js';
 import { fetchApple } from './sources/apple.js';
-import { fetchNaver } from './sources/naver.js';
 import { sunTimes, isDaylight } from './util/sun.js';
 import { unavailable } from './util/normalize.js';
 
-const ALL = ['openmeteo', 'kma', 'kma_metar', 'google', 'apple', 'naver'];
+const ALL = ['openmeteo', 'kma', 'kma_metar', 'google', 'apple'];
+
+// 한 출처가 느려도 전체 응답이 지연되지 않도록 출처별 타임아웃(ms).
+const SOURCE_TIMEOUT = Number(process.env.SOURCE_TIMEOUT_MS) || 7000;
+function withTimeout(promise, ms) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error(`시간 초과(${ms}ms)`)), ms)),
+  ]);
+}
 
 export async function aggregate({ lat, lon, region, sources }) {
   const want = sources && sources.length ? sources : ALL;
@@ -21,7 +29,6 @@ export async function aggregate({ lat, lon, region, sources }) {
     kma_metar: () => fetchKmaMetar(lat, lon, config.metarKey, config.metarUrl),
     google: () => fetchGoogle(lat, lon, config.googleKey),
     apple: () => fetchApple(lat, lon, config.apple),
-    naver: () => fetchNaver(region, config.naverEnabled),
   };
 
   const entries = await Promise.all(
@@ -29,7 +36,7 @@ export async function aggregate({ lat, lon, region, sources }) {
       .filter((s) => tasks[s])
       .map(async (s) => {
         try {
-          const r = await tasks[s]();
+          const r = await withTimeout(tasks[s](), SOURCE_TIMEOUT, s);
           return [s, { ...r, fetchedAt }];
         } catch (e) {
           return [s, { ...unavailable(s, `오류: ${e.message}`), fetchedAt }];

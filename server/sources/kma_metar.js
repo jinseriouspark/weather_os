@@ -7,7 +7,7 @@
 // ⚠️ apihub는 API별 "활용신청"이 필요하다. 미신청 시 403(활용신청 필요) 이 온다.
 //    엔드포인트를 바꾸려면 KMA_METAR_URL 로 {icao}/{key} 템플릿을 지정한다.
 import { makePoint, sourceResult, unavailable, degToCompass } from '../util/normalize.js';
-import { nearestAirport, extractRawMetar, parseMetar } from '../util/metar.js';
+import { nearestAirport, extractRawMetar, parseMetar, parseIwxxm } from '../util/metar.js';
 
 const LABEL = 'METAR(공항)';
 
@@ -40,12 +40,12 @@ export async function fetchKmaMetar(lat, lon, key, urlTemplate) {
     }
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
+    // 1순위: 원문 METAR 텍스트(있으면), 2순위: IWXXM 구조화 XML 태그 파싱
     const raw = extractRawMetar(body, ap.icao);
-    if (!raw) {
-      throw new Error('응답에 원문 METAR 없음 (활용신청/엔드포인트 확인)');
+    const parsed = raw ? parseMetar(raw) : parseIwxxm(body);
+    if (!parsed) {
+      throw new Error('METAR 파싱 실패 (응답 형식 확인)');
     }
-    const parsed = parseMetar(raw);
-    if (!parsed) throw new Error('METAR 파싱 실패');
 
     const current = makePoint({
       time: parsed.time,

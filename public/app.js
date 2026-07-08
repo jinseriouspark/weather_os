@@ -1,5 +1,35 @@
 // Weather Ops 프론트엔드 — 온보딩, 데이터 로드, 대시보드 렌더, 커스터마이징.
-const { ICONS, INDICATORS, PRESETS, SOURCE_ORDER, VERDICT_TEXT, valueFor, evalVerdict } = window.WX;
+const { ICONS, INDICATORS, PRESETS, SOURCE_ORDER, VERDICT_TEXT, valueFor, evalVerdict, severityScore } = window.WX;
+
+// 위험도 점수(0 안전 ~ 1 위험) → 초록→노랑→빨강 연속 보간 색
+const SEV_STOPS = [
+  [0.0, [104, 232, 156]], // 초록
+  [0.5, [255, 214, 92]],  // 노랑
+  [1.0, [255, 122, 110]], // 빨강
+];
+function lerp(a, b, t) { return Math.round(a + (b - a) * t); }
+function severityColor(score, light = 0) {
+  let c1 = SEV_STOPS[0][1];
+  for (let i = 1; i < SEV_STOPS.length; i++) {
+    const [s0, a] = SEV_STOPS[i - 1];
+    const [s1, b] = SEV_STOPS[i];
+    if (score <= s1 || i === SEV_STOPS.length - 1) {
+      const t = Math.max(0, Math.min(1, (score - s0) / (s1 - s0)));
+      c1 = [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)];
+      break;
+    }
+  }
+  const [r, g, b] = c1.map((v) => Math.max(0, Math.min(255, v + light)));
+  return `rgb(${r}, ${g}, ${b})`;
+}
+// 값에 위험도 그라데이션 텍스트를 입히는 인라인 스타일 (임계값 없으면 흰색)
+function severityStyle(preset, key, value) {
+  const score = severityScore(preset.thresholds[key], value);
+  if (score == null) return '';
+  const c1 = severityColor(score, 34);
+  const c2 = severityColor(score, -26);
+  return `background:linear-gradient(100deg,${c1},${c2});-webkit-background-clip:text;background-clip:text;color:transparent;font-weight:700`;
+}
 
 // 국내 주요 지역 (지오로케이션 폴백 + 네이버 크롤링용 지역명)
 const CITIES = [
@@ -126,9 +156,10 @@ function renderWidget(data, preset, key) {
   const display = value == null ? '—' : ind.fmt ? ind.fmt(value) : `${value}<span class="unit"> ${ind.unit}</span>`;
   const { point } = valueFor(data, key);
   const sub = ind.sub && point ? ind.sub(point) : null;
+  const sty = severityStyle(preset, key, value);
   el.innerHTML = `
     <div class="w-head"><span>${ind.icon} ${ind.label}</span><span>${statusDot(st)}</span></div>
-    <div class="w-val">${display}</div>
+    <div class="w-val" style="${sty}">${display}</div>
     <div class="w-sub">${sub || ''}</div>
     <div class="w-src">${source ? '출처: ' + source : '데이터 없음'}</div>`;
   return el;
@@ -182,7 +213,7 @@ function setAmbient(data) {
   document.body.style.setProperty('--wind-streak', streak.toFixed(3));
 }
 
-const SOURCE_LABELS = { openmeteo: 'Open-Meteo', kma: '기상청', kma_metar: 'METAR(공항)', google: 'Google', apple: 'Apple', naver: '네이버' };
+const SOURCE_LABELS = { openmeteo: 'Open-Meteo', kma: '기상청', kma_metar: 'METAR(공항)', google: 'Google', apple: 'Apple' };
 function sourceLabel(k) { return SOURCE_LABELS[k] || k; }
 
 const COMPARE_KEYS = ['temp', 'wind', 'gust', 'precip', 'humidity', 'visibility', 'cloud'];
@@ -196,12 +227,15 @@ function renderSources(data) {
     card.className = `scard ${src.available ? '' : 'off'}`;
     let rows = '';
     if (src.available && src.current) {
+      const preset = activePreset();
       for (const k of COMPARE_KEYS) {
         const ind = INDICATORS[k];
         const val = ind.value(src.current);
         if (val == null) continue;
         const disp = ind.fmt ? ind.fmt(val) : `${val} ${ind.unit}`;
-        rows += `<div class="row"><span class="k">${ind.icon} ${ind.label}</span><span>${disp}</span></div>`;
+        // 활성 프리셋 임계값으로 값에 위험도 그라데이션 색을 입혀 한눈에 비교
+        const sty = severityStyle(preset, k, val);
+        rows += `<div class="row"><span class="k">${ind.icon} ${ind.label}</span><span class="rowval" style="${sty}">${disp}</span></div>`;
       }
       if (!rows) rows = '<div class="reason">표시할 값 없음</div>';
     } else {
@@ -246,7 +280,6 @@ function demoData(region) {
       kma: { label: '기상청', available: true, current: { temp: 24, humidity: 60, windSpeed: 6, windDir: 250, windDirText: '서남서', precipProb: 30, precipAmount: 0, precipType: 'none', sky: '흐림', lightning: false, wave: 0.4 } },
       google: { label: 'Google', available: true, current: { temp: 25, feelsLike: 26, humidity: 58, windSpeed: 6, windGust: 12, windDir: 248, windDirText: '서남서', precipProb: 40, visibility: 8, cloudCover: 80, sky: '대체로 흐림' } },
       apple: { label: 'Apple', available: true, current: { temp: 24, feelsLike: 25, humidity: 61, windSpeed: 6, windGust: 11, windDir: 252, windDirText: '서남서', precipProb: 33, visibility: 9, cloudCover: 82, sky: 'Cloudy' } },
-      naver: { label: '네이버', available: false, reason: '데모(크롤링 비활성)' },
     },
   };
 }

@@ -13,7 +13,6 @@ export const config = {
     serviceId: process.env.APPLE_SERVICE_ID || '',
     privateKey: process.env.APPLE_PRIVATE_KEY || '',
   },
-  naverEnabled: process.env.NAVER_CRAWL_ENABLED !== '0',
 };
 
 // 각 출처가 자격증명을 갖췄는지 (Open-Meteo는 항상 가능)
@@ -24,6 +23,5 @@ export function sourceAvailability() {
     kma_metar: !!config.metarKey,
     google: !!config.googleKey,
     apple: !!(config.apple.teamId && config.apple.keyId && config.apple.serviceId && config.apple.privateKey),
-    naver: config.naverEnabled,
   };
 }
