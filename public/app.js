@@ -1,4 +1,4 @@
-// Weather Ops 프론트엔드 — 온보딩, 데이터 로드, 대시보드 렌더, 커스터마이징.
+// CloudsCode 프론트엔드 — 온보딩, 데이터 로드, 대시보드 렌더, 커스터마이징.
 const { ICONS, INDICATORS, PRESETS, SOURCE_ORDER, VERDICT_TEXT, valueFor, evalVerdict, severityScore } = window.WX;
 
 // 위험도 점수(0 안전 ~ 1 위험) → 초록→노랑→빨강 연속 보간 색
@@ -853,6 +853,25 @@ function applyTheme() {
   document.body.classList.add('rugged');
 }
 
+// ── PWA/사용 추적 (1st-party 비콘) ──
+// 서드파티 트래커 없이 우리 서버(/api/track)로 이벤트만 보낸다 → 기존 로그(/api/stats·Notion)에 합류.
+//   app_open: 앱 열림(설치형 standalone vs 브라우저 구분), pwa_install: 홈 설치 완료.
+function track(event) {
+  try {
+    const standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+    const body = JSON.stringify({
+      event,
+      mode: standalone ? 'standalone' : 'browser',
+      place: state.coords?.region || state.city || null,
+    });
+    if (navigator.sendBeacon) {
+      navigator.sendBeacon('/api/track', new Blob([body], { type: 'application/json' }));
+    } else {
+      fetch('/api/track', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body, keepalive: true }).catch(() => {});
+    }
+  } catch { /* 추적 실패는 무시 */ }
+}
+
 // ── PWA 설치 버튼 (홈 화면에 앱으로 추가) ──
 let deferredInstall = null;
 function setupInstall() {
@@ -868,6 +887,9 @@ function setupInstall() {
   });
   // iOS Safari: 프로그램 설치 불가 → 안내만
   if (isIOS) btn.classList.remove('hidden');
+
+  // 홈 화면 설치 완료 추적
+  window.addEventListener('appinstalled', () => track('pwa_install'));
 
   btn.onclick = async () => {
     if (deferredInstall) {
@@ -900,6 +922,7 @@ if (!localStorage.getItem(LS.onboarded)) {
   showOnboarding();
 }
 load();
+track('app_open'); // 사용 추적(앱 열림)
 
 // PWA 서비스워커 (file:// 데모나 미지원 브라우저에선 조용히 생략)
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {

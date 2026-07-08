@@ -6,7 +6,6 @@ import { fileURLToPath } from 'node:url';
 import { config, sourceAvailability } from './config.js';
 import { aggregate } from './aggregate.js';
 import { authRouter } from './auth.js';
-import { teamRouter } from './team.js';
 import { logEvent, coarse, getStats } from './metrics.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -65,10 +64,21 @@ app.get('/api/stats', (req, res) => {
   res.json(getStats());
 });
 
-// 인증 / 팀 (동의·로그인 기반 위치 공유)
+// 인증(로그인)
 app.use('/api/auth', authRouter);
-app.use('/api/team', teamRouter);
+
+// 클라이언트 이벤트 추적(PWA): 앱 열림·설치 등. 비식별(IP·정밀좌표 미기록).
+const TRACK_EVENTS = new Set(['app_open', 'pwa_install', 'pwa_installed']);
+app.post('/api/track', (req, res) => {
+  const type = String(req.body?.event || '');
+  if (!TRACK_EVENTS.has(type)) return res.status(400).json({ error: 'unknown event' });
+  logEvent(type, {
+    mode: req.body?.mode === 'standalone' ? 'standalone' : 'browser', // 설치형 vs 브라우저
+    place: req.body?.place ? String(req.body.place).slice(0, 40) : null,
+  });
+  res.json({ ok: true });
+});
 
 app.listen(config.port, () => {
-  console.log(`weather-ops 실행 중 → http://localhost:${config.port}`);
+  console.log(`CloudsCode 실행 중 → http://localhost:${config.port}`);
 });

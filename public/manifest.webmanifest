@@ -1,7 +1,7 @@
 {
-  "name": "Weather Ops — 업무용 날씨 통합 대시보드",
-  "short_name": "Weather Ops",
-  "description": "여러 출처의 날씨를 모아 작업 가능 여부(GO/주의/NO-GO)를 한눈에",
+  "name": "CloudsCode — 항공 날씨 코드",
+  "short_name": "CloudsCode",
+  "description": "공항 METAR·바람·활주로를 한눈에. 항덕을 위한 날씨 코드 앱.",
   "lang": "ko",
   "start_url": ".",
   "scope": ".",
@@ -13,8 +13,5 @@
     { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
     { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
     { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
-  ],
-  "shortcuts": [
-    { "name": "팀 현황", "url": "team.html", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] }
   ]
 }

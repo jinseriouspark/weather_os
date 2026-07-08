@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <!-- 페이지 핀치줌 비활성(지도 위 핀치가 화면을 픽셀 확대하지 않게) → 지도 확대는 +/− 버튼으로 -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Weather Ops — 업무용 날씨 한눈에</title>
+  <title>CloudsCode — 날씨 코드</title>
   <link rel="stylesheet" href="styles.css" />
   <!-- PWA: 홈 화면 설치 + 오프라인 -->
   <link rel="manifest" href="manifest.webmanifest" />
@@ -13,12 +13,12 @@
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="Weather Ops" />
+  <meta name="apple-mobile-web-app-title" content="CloudsCode" />
 </head>
 <body>
   <div id="loadbar" aria-hidden="true"></div>
   <header class="topbar">
-    <div class="brand"><img class="brand-ico" src="icons/icon-192.png" alt="" width="22" height="22" /> <span class="brand-name">Weather Ops</span><span id="navtitle" class="navtitle"></span></div>
+    <div class="brand"><img class="brand-ico" src="icons/icon-192.png" alt="" width="22" height="22" /> <span class="brand-name">CloudsCode</span><span id="navtitle" class="navtitle"></span></div>
     <div class="controls">
       <select id="presetSelect" title="업무 프리셋"></select>
       <div class="citysearch">
@@ -29,7 +29,6 @@
       <button id="refreshBtn" title="새로고침"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg></button>
       <button id="customizeBtn" title="대시보드 편집"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" x2="4" y1="21" y2="14"/><line x1="4" x2="4" y1="10" y2="3"/><line x1="12" x2="12" y1="21" y2="12"/><line x1="12" x2="12" y1="8" y2="3"/><line x1="20" x2="20" y1="21" y2="16"/><line x1="20" x2="20" y1="12" y2="3"/><line x1="2" x2="6" y1="14" y2="14"/><line x1="10" x2="14" y1="8" y2="8"/><line x1="18" x2="22" y1="16" y2="16"/></svg></button>
       <button id="installBtn" class="hidden" title="앱 설치">📲 설치</button>
-      <a href="team.html" class="navlink" title="팀 현황"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> 팀</a>
     </div>
   </header>
 

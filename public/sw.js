@@ -1,14 +1,14 @@
-// Weather Ops 서비스워커 — PWA 오프라인 지원.
+// CloudsCode 서비스워커 — PWA 오프라인 지원.
 // 전략:
 //   - 앱 셸(HTML/JS/CSS/아이콘): 설치 시 프리캐시, 이후 stale-while-revalidate
 //   - /api/weather: network-first → 실패 시 마지막 성공 응답(오프라인에서 직전 날씨 표시)
 //   - 그 외 /api/*: 네트워크 전용 (인증·팀 상태는 캐시하면 안 됨)
 // 새 배포 반영: CACHE_VERSION 을 올리면 이전 캐시가 activate 때 정리된다.
-const CACHE_VERSION = 'wxops-v35';
+const CACHE_VERSION = 'wxops-v36';
 // 상대경로: 루트/서브패스(GitHub Pages) 어디에 배포돼도 SW 위치 기준으로 해석됨
 const SHELL = [
-  './', 'index.html', 'team.html',
-  'app.js', 'team.js', 'presets.js', 'styles.css',
+  './', 'index.html',
+  'app.js', 'presets.js', 'styles.css',
   'manifest.webmanifest',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png',
 ];
