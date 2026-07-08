@@ -61,15 +61,21 @@ export async function fetchKmaWarnings(region) {
     if (!list) return { region, items: [], level: null };
     if (!Array.isArray(list)) list = [list];
 
-    const items = [];
+    // 하위 구역별로 같은 특보가 여러 줄 오므로 종류+등급으로 중복 제거
+    const uniq = new Map();
     let worst = null;
     for (const it of list) {
       const txt = `${it.title || ''} ${it.t6 || ''} ${it.other || ''}`;
       const c = classify(txt);
       if (!c) continue;
-      items.push({ kind: c.kind, grade: c.grade, level: c.level, title: it.title || `${c.kind}${c.grade}` });
+      const key = `${c.kind}${c.grade}`;
+      if (!uniq.has(key)) uniq.set(key, { kind: c.kind, grade: c.grade, level: c.level });
       if (c.level === 'nogo' || (c.level === 'caution' && worst !== 'nogo')) worst = c.level;
     }
+    // 심각한 것(경보) 먼저, 최대 6개까지만
+    const items = [...uniq.values()]
+      .sort((a, b) => (a.level === 'nogo' ? -1 : 1) - (b.level === 'nogo' ? -1 : 1))
+      .slice(0, 6);
     return { region, items, level: worst };
   } catch {
     return null;

@@ -6,13 +6,12 @@ import { fetchKmaMetar } from './sources/kma_metar.js';
 import { fetchGoogle } from './sources/google.js';
 import { fetchApple } from './sources/apple.js';
 import { fetchOpenWeather } from './sources/openweathermap.js';
-import { fetchWeatherApi } from './sources/weatherapi.js';
 import { fetchKmaMid } from './sources/kma_mid.js';
 import { fetchKmaWarnings } from './sources/kma_warn.js';
 import { sunTimes, isDaylight } from './util/sun.js';
 import { unavailable } from './util/normalize.js';
 
-const ALL = ['openmeteo', 'kma', 'kma_metar', 'google', 'owm', 'weatherapi', 'apple'];
+const ALL = ['openmeteo', 'kma', 'kma_metar', 'google', 'owm', 'apple'];
 
 // 한 출처가 느려도 전체 응답이 지연되지 않도록 출처별 타임아웃(ms).
 const SOURCE_TIMEOUT = Number(process.env.SOURCE_TIMEOUT_MS) || 7000;
@@ -33,7 +32,6 @@ export async function aggregate({ lat, lon, region, sources }) {
     kma_metar: () => fetchKmaMetar(lat, lon, config.metarKey, config.metarUrl),
     google: () => fetchGoogle(lat, lon, config.googleKey),
     owm: () => fetchOpenWeather(lat, lon, config.owmKey),
-    weatherapi: () => fetchWeatherApi(lat, lon, config.weatherApiKey),
     apple: () => fetchApple(lat, lon, config.apple),
   };
 

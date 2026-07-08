@@ -285,7 +285,7 @@ function setAmbient(data) {
   document.body.style.setProperty('--wind-streak', streak.toFixed(3));
 }
 
-const SOURCE_LABELS = { openmeteo: 'Open-Meteo', kma: '기상청', kma_metar: 'METAR(공항)', google: 'Google', owm: 'OpenWeather', weatherapi: 'WeatherAPI', apple: 'Apple' };
+const SOURCE_LABELS = { openmeteo: 'Open-Meteo', kma: '기상청', kma_metar: 'METAR(공항)', google: 'Google', owm: 'OpenWeather', apple: 'Apple' };
 function sourceLabel(k) { return SOURCE_LABELS[k] || k; }
 
 const COMPARE_KEYS = ['temp', 'wind', 'gust', 'precip', 'humidity', 'visibility', 'cloud'];
@@ -356,10 +356,22 @@ function renderWeekly(data) {
 }
 
 // ── 데이터 로드 ──
-// 첫 방문(캐시 없음) 시 빈 화면 대신 스켈레톤 자리표시자
+// 해·구름·비 아이콘이 빙글빙글 도는 날씨 로더
+function wxLoader(region) {
+  const sun = '<svg viewBox="0 0 24 24" fill="none" stroke="#ffd257" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.5" fill="#ffd257" fill-opacity="0.3"/><path d="M12 2v2M12 20v2M4 12H2M22 12h-2M5 5l1.4 1.4M17.6 17.6 19 19M19 5l-1.4 1.4M6.4 17.6 5 19"/></svg>';
+  const cloud = '<svg viewBox="0 0 24 24" fill="rgba(255,255,255,0.3)" stroke="#e6edf3" stroke-width="2" stroke-linejoin="round"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>';
+  const rain = '<svg viewBox="0 0 24 24" fill="none" stroke="#cfe6ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 13a5 5 0 0 0-9.58-2A4 4 0 1 0 6 15h10a3.5 3.5 0 0 0 .9-6.9"/><path d="M8 18v2M12 19v2M16 18v2" stroke="#6fb4ff"/></svg>';
+  return `<div class="wx-loader">
+    <div class="wx-orbit">
+      <span class="wo">${sun}</span><span class="wo">${cloud}</span><span class="wo">${rain}</span>
+    </div>
+    <div class="wx-loading-text">${region ? region + ' ' : ''}날씨 불러오는 중…</div>
+  </div>`;
+}
+
+// 첫 방문(캐시 없음) 시 빈 화면 대신 날씨 로더 + 스켈레톤 자리표시자
 function showSkeleton(region) {
-  document.getElementById('verdict').innerHTML =
-    `<div class="v-place">${region || ''}</div><div class="v-temp skel-line" style="width:120px;height:76px;margin:6px auto"></div><div class="skel-line" style="width:110px;height:40px;border-radius:980px;margin:6px auto"></div>`;
+  document.getElementById('verdict').innerHTML = wxLoader(region);
   document.getElementById('widgets').innerHTML =
     Array.from({ length: 6 }).map(() => '<div class="widget skel"></div>').join('');
   document.getElementById('sources').innerHTML =

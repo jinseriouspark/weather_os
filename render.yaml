@@ -29,10 +29,8 @@ services:
         sync: false
       - key: APPLE_PRIVATE_KEY
         sync: false
-      # 사용량 통계(/api/stats) 보호 토큰 (미설정 시 공개)
       - key: OWM_KEY
         sync: false
-      - key: WEATHERAPI_KEY
-        sync: false
+      # 사용량 통계(/api/stats) 보호 토큰 (미설정 시 공개)
       - key: STATS_TOKEN
         sync: false

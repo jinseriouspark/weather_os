@@ -266,6 +266,17 @@ main { max-width: 1080px; margin: 0 auto; padding: 20px 16px 40px; }
 body.loading #loadbar { opacity: 1; animation: loadbar 1.8s ease-in-out infinite; }
 @keyframes loadbar { 0% { width: 4%; } 55% { width: 68%; } 100% { width: 94%; } }
 
+/* 날씨 로더 — 해·구름·비 아이콘이 중심을 빙글빙글 (아이콘은 위로 유지) */
+.wx-loader { text-align: center; padding: 30px 0 16px; }
+.wx-orbit { position: relative; width: 92px; height: 92px; margin: 0 auto 14px; animation: wxspin 2.6s linear infinite; }
+.wx-orbit .wo { position: absolute; width: 30px; height: 30px; margin: -15px 0 0 -15px; animation: wxspin 2.6s linear infinite reverse; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.25)); }
+.wx-orbit .wo svg { width: 100%; height: 100%; }
+.wx-orbit .wo:nth-child(1) { left: 46px; top: 11px; }
+.wx-orbit .wo:nth-child(2) { left: 76px; top: 63px; }
+.wx-orbit .wo:nth-child(3) { left: 16px; top: 63px; }
+@keyframes wxspin { to { transform: rotate(360deg); } }
+.wx-loading-text { color: var(--ink-soft); font-size: 14px; font-weight: 600; letter-spacing: 0.2px; text-shadow: 0 1px 4px rgba(0,0,0,0.25); }
+
 /* 스켈레톤(첫 로딩 자리표시자) */
 .skel, .skel-line { position: relative; overflow: hidden; background: var(--glass); }
 .widget.skel { min-height: 104px; } .scard.skel { min-height: 150px; }
