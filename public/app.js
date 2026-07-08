@@ -157,8 +157,13 @@ function render() {
   // 위젯
   const wrap = document.getElementById('widgets');
   wrap.innerHTML = '';
+  // 개수 안정성: 한 위젯이 실패해도 자리(카드)는 유지 → 핵심지표 칸 수가 새로고침마다
+  // 6↔7로 바뀌지 않도록 항상 preset.widgets 수만큼 렌더한다.
   for (const key of preset.widgets) {
-    wrap.appendChild(renderWidget(data, preset, key));
+    let card;
+    try { card = renderWidget(data, preset, key); }
+    catch { card = document.createElement('div'); card.className = 'widget'; }
+    wrap.appendChild(card);
   }
 
   // 출처 비교
@@ -190,9 +195,10 @@ function renderWidget(data, preset, key) {
   const el = document.createElement('div');
 
   if (key === 'daylight') {
-    const isDay = data.sun.isDaylight !== false;
+    const sun = data.sun || {};
+    const isDay = sun.isDaylight !== false;
     el.className = `widget wide ${isDay ? 'go' : 'caution'}`;
-    el.innerHTML = sunArc(data.sun, ind);
+    el.innerHTML = sunArc(sun, ind);
     return el;
   }
 

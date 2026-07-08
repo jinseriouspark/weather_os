@@ -259,7 +259,11 @@ body.scrolled .brand-name { display: none; }
 }
 
 /* ── 지표 위젯 ── */
-.widgets { display: grid; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); gap: 13px; }
+/* 고정 열 수: auto-fill은 폭이 조금만 바뀌어도(스크롤바 등) 2↔3열로 튀어 레이아웃이
+   새로고침마다 달라 보였다. 화면 크기별로 열 수를 명시해 배치를 안정화한다. */
+.widgets { display: grid; grid-template-columns: repeat(2, 1fr); gap: 13px; }
+@media (min-width: 620px) { .widgets { grid-template-columns: repeat(3, 1fr); } }
+@media (min-width: 900px) { .widgets { grid-template-columns: repeat(4, 1fr); } }
 .widget { padding: 15px 15px 13px; transition: transform 0.2s ease, background 0.2s ease; }
 .widget:hover { transform: translateY(-3px); background: var(--glass-strong); }
 .widget .w-head { display: flex; justify-content: space-between; align-items: center; color: var(--ink-soft); font-size: 12.5px; font-weight: 600; letter-spacing: 0.2px; }
@@ -339,7 +343,9 @@ body.scrolled .brand-name { display: none; }
 .scard .row.hot .rowval { font-weight: 800; }
 
 /* ── 출처 비교 카드 ── */
-.sources { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 13px; }
+.sources { display: grid; grid-template-columns: repeat(2, 1fr); gap: 13px; }
+@media (min-width: 720px) { .sources { grid-template-columns: repeat(3, 1fr); } }
+@media (min-width: 1000px) { .sources { grid-template-columns: repeat(4, 1fr); } }
 .scard { padding: 15px; transition: background 0.2s ease; }
 .scard:hover { background: var(--glass-strong); }
 .scard.off { opacity: 0.55; }
