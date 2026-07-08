@@ -158,14 +158,9 @@ function renderWidget(data, preset, key) {
   const el = document.createElement('div');
 
   if (key === 'daylight') {
-    const sr = data.sun.sunrise ? new Date(data.sun.sunrise).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) : '—';
-    const ss = data.sun.sunset ? new Date(data.sun.sunset).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) : '—';
-    const st = data.sun.isDaylight === false ? 'caution' : 'go';
-    el.className = `widget ${st}`;
-    el.innerHTML = `
-      <div class="w-head"><span>${ind.icon} ${ind.label}</span></div>
-      <div class="w-val" style="font-size:18px">${ICONS.sunrise} ${sr} · ${ICONS.sunset} ${ss}</div>
-      <div class="w-sub">${data.sun.isDaylight === false ? '현재 야간' : '현재 주간'}</div>`;
+    const isDay = data.sun.isDaylight !== false;
+    el.className = `widget wide ${isDay ? 'go' : 'caution'}`;
+    el.innerHTML = sunArc(data.sun, ind);
     return el;
   }
 
@@ -187,6 +182,60 @@ function renderWidget(data, preset, key) {
 function statusDot(st) {
   const c = { go: 'var(--go)', caution: 'var(--caution)', nogo: 'var(--nogo)', na: 'var(--na)' }[st];
   return `<span style="color:${c}">●</span>`;
+}
+
+// ── 일출·일몰 해의 하루 경로 호(arc) ──
+// 일출(왼)→일몰(오른) 곡선 위에 현재 해 위치를 찍고, 지나온 낮 시간을 밝게 채운다.
+function sunArc(sun, ind) {
+  const hhmm = (iso) => (iso ? new Date(iso).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) : '—');
+  const sr = hhmm(sun.sunrise), ss = hhmm(sun.sunset);
+  const isDay = sun.isDaylight !== false;
+
+  // 낮 진행률 t (0=일출, 1=일몰)
+  let t = 0.5;
+  if (sun.sunrise && sun.sunset) {
+    const s = new Date(sun.sunrise).getTime();
+    const e = new Date(sun.sunset).getTime();
+    if (e > s) t = (Date.now() - s) / (e - s);
+  }
+  const tc = Math.max(0, Math.min(1, t));
+
+  // 기하: 이차 베지어 아치
+  const W = 280, H = 108, m = 26, baseY = 80, arcH = 54;
+  const bez = (u) => {
+    const mt = 1 - u;
+    return {
+      x: mt * mt * m + 2 * mt * u * (W / 2) + u * u * (W - m),
+      y: mt * mt * baseY + 2 * mt * u * (baseY - 2 * arcH) + u * u * baseY,
+    };
+  };
+  const p = bez(tc);
+  const d = `M${m},${baseY} Q${W / 2},${baseY - 2 * arcH} ${W - m},${baseY}`;
+
+  // 낮이면 밝은 해, 밤이면 지평선 아래 흐린 점
+  const sunFill = isDay ? '#ffd257' : 'rgba(255,255,255,0.5)';
+  const sunY = isDay ? p.y : baseY + 12;
+  const sunX = isDay ? p.x : (t <= 0 ? m : W - m);
+  const trail = isDay ? `${tc} 1` : '0 1';
+
+  return `
+    <div class="w-head"><span>${ind.icon} ${ind.label}</span><span class="daynight">${isDay ? '주간' : '야간'}</span></div>
+    <svg class="sunarc" viewBox="0 0 ${W} ${H}" width="100%" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+      <defs>
+        <linearGradient id="sunTrail" x1="0" x2="1" y1="0" y2="0">
+          <stop offset="0" stop-color="#ff9d5c"/><stop offset="1" stop-color="#ffd257"/>
+        </linearGradient>
+      </defs>
+      <line x1="${m - 6}" y1="${baseY}" x2="${W - m + 6}" y2="${baseY}" stroke="rgba(255,255,255,0.22)" stroke-width="1"/>
+      <path d="${d}" fill="none" stroke="rgba(255,255,255,0.22)" stroke-width="2.5" stroke-dasharray="3 4" stroke-linecap="round"/>
+      <path d="${d}" fill="none" stroke="url(#sunTrail)" stroke-width="3" pathLength="1" stroke-dasharray="${trail}" stroke-linecap="round"/>
+      <circle cx="${sunX}" cy="${sunY}" r="6.5" fill="${sunFill}"/>
+      ${isDay ? `<circle cx="${sunX}" cy="${sunY}" r="11" fill="${sunFill}" opacity="0.25"/>` : ''}
+    </svg>
+    <div class="sun-times">
+      <span>${ICONS.sunrise} ${sr}</span>
+      <span>${ss} ${ICONS.sunset}</span>
+    </div>`;
 }
 
 // ── 앰비언트 하늘: 날씨 상태 + 시간대 + 풍속으로 전체 배경 그라데이션을 만든다 ──

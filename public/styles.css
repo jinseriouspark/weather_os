@@ -141,6 +141,13 @@ main { max-width: 1080px; margin: 0 auto; padding: 20px 16px 40px; }
 .widget .w-val .unit { font-size: 13px; color: var(--ink-soft); font-weight: 500; letter-spacing: 0; }
 .widget .w-sub { font-size: 12px; color: var(--ink-soft); margin-top: 3px; min-height: 14px; }
 .widget .w-src { font-size: 11px; color: var(--ink-faint); margin-top: 8px; }
+/* 일출·일몰 해 경로 위젯 (넓게) */
+.widget.wide { grid-column: span 2; }
+.widget .daynight { color: var(--ink-soft); font-size: 12px; font-weight: 600; }
+.sunarc { display: block; margin: 6px 0 2px; overflow: visible; }
+.sun-times { display: flex; justify-content: space-between; font-size: 13px; color: var(--ink-soft); font-weight: 600; }
+.sun-times .ico { width: 14px; height: 14px; }
+@media (max-width: 460px) { .widget.wide { grid-column: span 2; } }
 
 .section-title { font-size: 13px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: var(--ink-soft); text-shadow: 0 1px 4px rgba(0,0,0,0.25); }
 .section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 28px 0 12px; flex-wrap: wrap; }
