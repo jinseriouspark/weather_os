@@ -169,6 +169,13 @@ main { max-width: 1080px; margin: 0 auto; padding: 20px 16px 40px; }
 /* 바람 지도 (Windy 임베드) */
 .windmap { border-radius: var(--radius); overflow: hidden; border: 1px solid var(--glass-border); box-shadow: var(--shadow); background: var(--glass); }
 .windmap iframe { display: block; width: 100%; height: 360px; border: 0; }
+/* 내 위치 지도 (OpenStreetMap) */
+.locmap { position: relative; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--glass-border); box-shadow: var(--shadow); margin-bottom: 18px; }
+.locmap iframe { display: block; width: 100%; height: 200px; border: 0; }
+.locmap-cap { position: absolute; left: 10px; bottom: 10px; display: inline-flex; align-items: center; gap: 5px;
+  background: rgba(10,16,24,0.7); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  color: #fff; font-size: 13px; font-weight: 600; padding: 6px 12px; border-radius: 980px; border: 1px solid var(--glass-border); }
+.locmap-cap .ico { width: 13px; height: 13px; }
 #installBtn { font-weight: 600; }
 /* 주간 예보(중기) */
 .weekly { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(96px, 1fr); gap: 10px; overflow-x: auto; padding-bottom: 4px; }

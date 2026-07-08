@@ -163,6 +163,9 @@ function render() {
   // 출처 비교
   renderSources(data);
 
+  // 내 위치 지도(GPS 사용 시)
+  renderLocMap();
+
   // 바람 지도(Windy)
   renderWindMap();
 
@@ -355,6 +358,25 @@ function renderSources(data) {
     card.innerHTML = `<h3>${sourceLabel(sid)} <span class="badge ${src.available ? 'on' : ''}">${src.available ? 'ON' : 'OFF'}</span></h3>${rows}`;
     wrap.appendChild(card);
   }
+}
+
+// ── 내 위치 지도 (OpenStreetMap 임베드, 키 불필요) — GPS 사용 시 핀 표시 ──
+function renderLocMap() {
+  const wrap = document.getElementById('locmap-wrap');
+  const el = document.getElementById('locmap');
+  if (!wrap || !el) return;
+  // 'GPS 내 위치'를 썼을 때만 확인용 지도 표시 (도시 선택 시엔 숨김)
+  if (!state.coords || state.lat == null) { wrap.classList.add('hidden'); return; }
+  wrap.classList.remove('hidden');
+  const lat = state.lat, lon = state.lon;
+  const key = `${lat.toFixed(4)},${lon.toFixed(4)}`;
+  if (el.dataset.key === key) return;
+  el.dataset.key = key;
+  const d = 0.012;
+  const bbox = `${lon - d},${lat - d},${lon + d},${lat + d}`;
+  el.innerHTML =
+    `<iframe title="내 위치" src="https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${lat},${lon}" loading="lazy" referrerpolicy="no-referrer"></iframe>` +
+    `<div class="locmap-cap">${ICONS.pin} 내 위치 · ${state.coords.region || ''}</div>`;
 }
 
 // ── 바람 지도 (Windy 임베드, 키 불필요) ──
