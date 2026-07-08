@@ -1,5 +1,6 @@
 import express from 'express';
 import session from 'express-session';
+import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
@@ -25,6 +26,24 @@ app.use(
     },
   })
 );
+
+// GA4 서드파티 트래커: 측정 ID(GA_MEASUREMENT_ID)가 있으면 index.html <head>에 gtag 주입.
+//   부팅 시 1회 계산해서 캐시. 정적 서빙보다 먼저 '/' 와 '/index.html' 을 가로챈다.
+const INDEX_PATH = path.join(__dirname, '..', 'public', 'index.html');
+function buildIndexHtml() {
+  let html = fs.readFileSync(INDEX_PATH, 'utf8');
+  if (config.gaId) {
+    const id = config.gaId.replace(/[^A-Za-z0-9-]/g, ''); // 안전화
+    const snippet =
+      `<script async src="https://www.googletagmanager.com/gtag/js?id=${id}"></script>\n` +
+      `<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}` +
+      `gtag('js',new Date());gtag('config','${id}');</script>\n`;
+    html = html.replace('</head>', snippet + '</head>');
+  }
+  return html;
+}
+const INDEX_HTML = buildIndexHtml();
+app.get(['/', '/index.html'], (req, res) => res.type('html').send(INDEX_HTML));
 
 app.use(express.static(path.join(__dirname, '..', 'public')));
 

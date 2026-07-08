@@ -8,6 +8,7 @@ export const config = {
   metarUrl: process.env.KMA_METAR_URL || '',
   owmKey: process.env.OWM_KEY || '',
   kweatherKey: process.env.KWEATHER_KEY || '',
+  gaId: process.env.GA_MEASUREMENT_ID || '', // Google Analytics 4 측정 ID(G-XXXX). 있으면 gtag 주입.
   apple: {
     teamId: process.env.APPLE_TEAM_ID || '',
     keyId: process.env.APPLE_KEY_ID || '',

@@ -859,16 +859,17 @@ function applyTheme() {
 function track(event) {
   try {
     const standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
-    const body = JSON.stringify({
-      event,
-      mode: standalone ? 'standalone' : 'browser',
-      place: state.coords?.region || state.city || null,
-    });
+    const mode = standalone ? 'standalone' : 'browser';
+    const place = state.coords?.region || state.city || null;
+    // 1) 1st-party 로그(/api/track → /api/stats·Notion)
+    const body = JSON.stringify({ event, mode, place });
     if (navigator.sendBeacon) {
       navigator.sendBeacon('/api/track', new Blob([body], { type: 'application/json' }));
     } else {
       fetch('/api/track', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body, keepalive: true }).catch(() => {});
     }
+    // 2) 서드파티(GA4): gtag가 주입돼 있으면 같은 이벤트 전송
+    if (window.gtag) window.gtag('event', event, { mode, place });
   } catch { /* 추적 실패는 무시 */ }
 }
 
