@@ -32,3 +32,8 @@ services:
       # 사용량 통계(/api/stats) 보호 토큰 (미설정 시 공개)
       - key: STATS_TOKEN
         sync: false
+      # 외부 저장(선택): 사용 로그를 Notion DB에 기록 (재시작에도 보존)
+      - key: NOTION_TOKEN
+        sync: false
+      - key: NOTION_LOG_DB
+        sync: false

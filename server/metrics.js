@@ -6,6 +6,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { logToNotion } from './notion.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const LOG_PATH = process.env.METRICS_LOG || path.join(__dirname, '..', 'metrics.log');
@@ -50,6 +51,8 @@ export function logEvent(type, fields = {}) {
   bump(entry);
   // 비동기 추가 기록(실패해도 서비스 영향 없음)
   fs.appendFile(LOG_PATH, JSON.stringify(entry) + '\n', () => {});
+  // 외부(노션) 저장이 켜져 있으면 함께 기록 (env NOTION_TOKEN+NOTION_LOG_DB)
+  logToNotion(entry);
   return entry;
 }
 
