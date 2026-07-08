@@ -7,6 +7,7 @@ import { config, sourceAvailability } from './config.js';
 import { aggregate } from './aggregate.js';
 import { authRouter } from './auth.js';
 import { teamRouter } from './team.js';
+import { logEvent, coarse, getStats } from './metrics.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -45,10 +46,21 @@ app.get('/api/weather', async (req, res) => {
 
   try {
     const data = await aggregate({ lat, lon, region, sources });
+    // 사용량 로그(비식별): 지역명 + 라운딩 좌표만, IP는 기록 안 함
+    logEvent('weather_query', { region: region || null, lat: coarse(lat), lon: coarse(lon) });
     res.json(data);
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
+});
+
+// 사용량 통계: 쿼리·가입 건수. STATS_TOKEN 설정 시 ?token= 일치해야 조회.
+app.get('/api/stats', (req, res) => {
+  const need = process.env.STATS_TOKEN;
+  if (need && req.query.token !== need) {
+    return res.status(401).json({ error: 'STATS_TOKEN이 필요합니다.' });
+  }
+  res.json(getStats());
 });
 
 // 인증 / 팀 (동의·로그인 기반 위치 공유)

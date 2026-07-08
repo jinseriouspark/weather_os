@@ -4,6 +4,8 @@ dotenv.config();
 export const config = {
   port: Number(process.env.PORT) || 8787,
   kmaKey: process.env.KMA_SERVICE_KEY || '',
+  metarKey: process.env.KMA_METAR_KEY || '',
+  metarUrl: process.env.KMA_METAR_URL || '',
   googleKey: process.env.GOOGLE_WEATHER_KEY || '',
   apple: {
     teamId: process.env.APPLE_TEAM_ID || '',
@@ -19,6 +21,7 @@ export function sourceAvailability() {
   return {
     openmeteo: true,
     kma: !!config.kmaKey,
+    kma_metar: !!config.metarKey,
     google: !!config.googleKey,
     apple: !!(config.apple.teamId && config.apple.keyId && config.apple.serviceId && config.apple.privateKey),
     naver: config.naverEnabled,

@@ -131,7 +131,7 @@ function statusDot(st) {
   return `<span style="color:${c}">●</span>`;
 }
 
-const SOURCE_LABELS = { openmeteo: 'Open-Meteo', kma: '기상청', google: 'Google', apple: 'Apple', naver: '네이버' };
+const SOURCE_LABELS = { openmeteo: 'Open-Meteo', kma: '기상청', kma_metar: 'METAR(공항)', google: 'Google', apple: 'Apple', naver: '네이버' };
 function sourceLabel(k) { return SOURCE_LABELS[k] || k; }
 
 const COMPARE_KEYS = ['temp', 'wind', 'gust', 'precip', 'humidity', 'visibility', 'cloud'];

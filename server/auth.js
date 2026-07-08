@@ -3,6 +3,7 @@
 import express from 'express';
 import bcrypt from 'bcryptjs';
 import { createUser, findUserByName, findUserById, deleteUser } from './store.js';
+import { logEvent } from './metrics.js';
 
 export const authRouter = express.Router();
 
@@ -33,6 +34,7 @@ authRouter.post('/register', async (req, res) => {
     const passHash = await bcrypt.hash(password, 10);
     const user = createUser({ username: username.trim(), passHash });
     req.session.userId = user.id;
+    logEvent('register'); // 가입 건수만 (사용자명 등 비식별)
     res.json({ id: user.id, username: user.username });
   } catch (e) {
     res.status(409).json({ error: e.message });
@@ -47,6 +49,7 @@ authRouter.post('/login', async (req, res) => {
   const ok = user && (await bcrypt.compare(String(password || ''), user.passHash));
   if (!ok) return res.status(401).json({ error: '사용자명 또는 비밀번호가 올바르지 않습니다.' });
   req.session.userId = user.id;
+  logEvent('login'); // 로그인 건수만
   res.json({ id: user.id, username: user.username });
 });
 
