@@ -8,6 +8,8 @@ import { fetchApple } from './sources/apple.js';
 import { fetchMetno } from './sources/metno.js';
 import { fetchOpenWeather } from './sources/openweathermap.js';
 import { fetchWeatherApi } from './sources/weatherapi.js';
+import { fetchKmaMid } from './sources/kma_mid.js';
+import { fetchKmaWarnings } from './sources/kma_warn.js';
 import { sunTimes, isDaylight } from './util/sun.js';
 import { unavailable } from './util/normalize.js';
 
@@ -70,11 +72,19 @@ export async function aggregate({ lat, lon, region, sources }) {
     .filter(([, v]) => !v.available && v.reason === '키 필요')
     .map(([k]) => k);
 
+  // 부가 정보: 기상특보(현재 발효) + 중기예보(주간 전망). 실패해도 본체 무영향.
+  const [warnings, mid] = await Promise.all([
+    withTimeout(fetchKmaWarnings(region), 6000).catch(() => null),
+    withTimeout(fetchKmaMid(region), 6000).catch(() => null),
+  ]);
+
   return {
     location: { lat, lon, region: region || null },
     fetchedAt,
     sun,
     sources: result,
+    warnings: warnings || null,
+    mid: mid || null,
     meta: { enabled, missingKeys },
   };
 }

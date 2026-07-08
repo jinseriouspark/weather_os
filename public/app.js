@@ -124,7 +124,7 @@ function render() {
     <div class="v-badge ${status}"><span class="v-dot"></span>${VERDICT_TEXT[status]}</div>
     <div class="reasons">${
       reasons.length
-        ? reasons.map((r) => `<span>${r.label}</span>`).join('')
+        ? reasons.map((r) => `<span class="${r.st || ''}">${r.label}</span>`).join('')
         : '<span>모든 지표 양호</span>'
     }</div>`;
 
@@ -145,6 +145,9 @@ function render() {
 
   // 출처 비교
   renderSources(data);
+
+  // 주간 예보(중기)
+  renderWeekly(data);
 
   // 날씨·풍속 연동 배경
   setAmbient(data);
@@ -327,6 +330,30 @@ function renderSources(data) {
   }
 }
 
+// ── 주간 예보(중기) 렌더 ──
+const WEEKDAY = ['일', '월', '화', '수', '목', '금', '토'];
+function renderWeekly(data) {
+  const wrap = document.getElementById('weekly-wrap');
+  const el = document.getElementById('weekly');
+  if (!wrap || !el) return;
+  const mid = data.mid;
+  if (!mid || !mid.days?.length) { wrap.classList.add('hidden'); return; }
+  wrap.classList.remove('hidden');
+  el.innerHTML = mid.days.map((d) => {
+    const dt = new Date(d.date + 'T00:00:00');
+    const dow = WEEKDAY[dt.getDay()];
+    const md = `${dt.getMonth() + 1}.${dt.getDate()}`;
+    const rain = Math.max(d.rainAm ?? 0, d.rainPm ?? 0);
+    const sky = d.skyPm || d.skyAm || '—';
+    return `<div class="wcard">
+      <div class="wd">${md} <span>(${dow})</span></div>
+      <div class="wsky">${sky}</div>
+      <div class="wtemp"><span class="lo">${d.tempMin ?? '—'}°</span> / <span class="hi">${d.tempMax ?? '—'}°</span></div>
+      <div class="wrain">${ICONS.rain} ${rain}%</div>
+    </div>`;
+  }).join('');
+}
+
 // ── 데이터 로드 ──
 async function load() {
   const city = CITIES.find((c) => c.name === state.city) || CITIES[0];
@@ -356,6 +383,17 @@ function demoData(region) {
     fetchedAt: new Date().toISOString(),
     sun: { sunrise: '2026-06-18T05:11', sunset: '2026-06-18T19:56', isDaylight: true },
     meta: { enabled: ['openmeteo', 'kma', 'google', 'apple'], missingKeys: [] },
+    warnings: { region: region || '서울', level: 'caution', items: [{ kind: '강풍', grade: '주의보', level: 'caution', title: '강풍주의보' }] },
+    mid: { region: region || '서울', days: [
+      { date: '2026-06-21', offset: 3, skyAm: '구름많음', skyPm: '흐림', rainAm: 30, rainPm: 60, tempMin: 21, tempMax: 28 },
+      { date: '2026-06-22', offset: 4, skyAm: '흐림', skyPm: '비', rainAm: 60, rainPm: 80, tempMin: 22, tempMax: 27 },
+      { date: '2026-06-23', offset: 5, skyAm: '구름많음', skyPm: '맑음', rainAm: 40, rainPm: 20, tempMin: 20, tempMax: 29 },
+      { date: '2026-06-24', offset: 6, skyAm: '맑음', skyPm: '맑음', rainAm: 10, rainPm: 10, tempMin: 19, tempMax: 30 },
+      { date: '2026-06-25', offset: 7, skyAm: '구름조금', skyPm: '구름많음', rainAm: 20, rainPm: 30, tempMin: 21, tempMax: 31 },
+      { date: '2026-06-26', offset: 8, skyAm: '흐림', skyPm: '흐림', rainAm: 50, rainPm: 50, tempMin: 22, tempMax: 28 },
+      { date: '2026-06-27', offset: 9, skyAm: '비', skyPm: '비', rainAm: 70, rainPm: 70, tempMin: 21, tempMax: 26 },
+      { date: '2026-06-28', offset: 10, skyAm: '구름많음', skyPm: '맑음', rainAm: 30, rainPm: 20, tempMin: 20, tempMax: 29 },
+    ] },
     sources: {
       openmeteo: { label: 'Open-Meteo', available: true, current: { temp: 24, feelsLike: 25, humidity: 62, windSpeed: 6, windGust: 11, windDir: 250, windDirText: '서남서', precipProb: 35, precipAmount: 0, lightning: false, visibility: 9, cloudCover: 85, sky: '흐림' } },
       kma: { label: '기상청', available: true, current: { temp: 24, humidity: 60, windSpeed: 6, windDir: 250, windDirText: '서남서', precipProb: 30, precipAmount: 0, precipType: 'none', sky: '흐림', lightning: false, wave: 0.4 } },

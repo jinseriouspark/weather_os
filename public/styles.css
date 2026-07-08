@@ -149,7 +149,24 @@ main { max-width: 1080px; margin: 0 auto; padding: 20px 16px 40px; }
 .sun-times .ico { width: 14px; height: 14px; }
 @media (max-width: 460px) { .widget.wide { grid-column: span 2; } }
 
-.section-title { font-size: 13px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: var(--ink-soft); text-shadow: 0 1px 4px rgba(0,0,0,0.25); }
+.section-title { font-size: 13px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: var(--ink-soft); text-shadow: 0 1px 4px rgba(0,0,0,0.25); margin: 28px 0 12px; }
+/* 주간 예보(중기) */
+.weekly { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(96px, 1fr); gap: 10px; overflow-x: auto; padding-bottom: 4px; }
+.wcard {
+  background: var(--glass); -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur);
+  border: 1px solid var(--glass-border); border-radius: var(--radius-sm);
+  padding: 12px 10px; text-align: center; box-shadow: var(--shadow);
+}
+.wcard .wd { font-size: 13px; font-weight: 700; }
+.wcard .wd span { color: var(--ink-soft); font-weight: 500; }
+.wcard .wsky { font-size: 12px; color: var(--ink-soft); margin: 6px 0; min-height: 15px; }
+.wcard .wtemp { font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.wcard .wtemp .lo { color: #8fc4f0; } .wcard .wtemp .hi { color: #ffb27a; }
+.wcard .wrain { font-size: 12px; color: var(--ink-soft); margin-top: 5px; display: flex; align-items: center; justify-content: center; gap: 3px; }
+.wcard .wrain .ico { width: 12px; height: 12px; }
+/* 특보 사유(히어로) 강조 */
+.verdict .reasons span.nogo { background: rgba(248,86,75,0.22); border-color: rgba(248,86,75,0.5); color: #ffd9d4; }
+.verdict .reasons span.caution { background: rgba(255,207,74,0.2); border-color: rgba(255,207,74,0.45); color: #fff2cc; }
 .section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 28px 0 12px; flex-wrap: wrap; }
 .colorby-label { font-size: 12px; color: var(--ink-soft); display: inline-flex; align-items: center; gap: 7px; text-shadow: 0 1px 3px rgba(0,0,0,0.25); }
 .colorby-label select {

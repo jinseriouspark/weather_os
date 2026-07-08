@@ -255,6 +255,15 @@ function evalVerdict(data, preset) {
     }
     if (WORSE[st] > WORSE[worst]) worst = st;
   }
+  // 기상특보 반영: 경보=NO-GO, 주의보=주의 (기상청 공식 신호이므로 최우선 격상)
+  const warn = data.warnings;
+  if (warn && warn.level && (warn.items || []).length) {
+    const st = warn.level; // 'nogo' | 'caution'
+    for (const w of warn.items) {
+      reasons.unshift({ label: `⚠️ ${w.kind}${w.grade}`, st: w.level });
+    }
+    if (WORSE[st] > WORSE[worst]) worst = st;
+  }
   return { status: worst, reasons };
 }
 
