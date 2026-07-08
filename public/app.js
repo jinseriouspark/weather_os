@@ -651,32 +651,28 @@ function initControls() {
   };
   document.getElementById('refreshBtn').onclick = load;
   document.getElementById('customizeBtn').onclick = showCustomize;
-  const tb = document.getElementById('themeBtn');
-  if (tb) tb.onclick = () => {
-    state.theme = state.theme === 'soft' ? 'rugged' : 'soft';
-    localStorage.setItem('wx.theme', state.theme);
-    applyTheme();
-  };
   document.getElementById('modal').onclick = (e) => { if (e.target.id === 'modal') closeModal(); };
 }
 
-// 좌표 → 읍면동 이름 (OpenStreetMap Nominatim 역지오코딩, 무료·무키)
+// 좌표 → 주소 (특별시/도 · 시군구 · 읍면동). OpenStreetMap Nominatim, 무료·무키.
 async function reverseGeocode(lat, lon) {
-  const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}&accept-language=ko&zoom=14`;
+  const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}&accept-language=ko&zoom=18`;
   const res = await fetch(url, { headers: { Accept: 'application/json' } });
   if (!res.ok) return null;
   const a = (await res.json()).address || {};
-  const gu = a.city || a.county || a.town || a.borough || a.province || '';
-  const dong = a.suburb || a.quarter || a.neighbourhood || a.city_district || a.village || a.town || '';
-  const name = [gu, dong].filter(Boolean).join(' ').trim();
+  // 행정 위계 순서대로 중복 없이 최대 3단계(시도→시군구→읍면동)
+  const parts = [];
+  const push = (v) => { if (v && !parts.includes(v)) parts.push(v); };
+  push(a.province); push(a.state); push(a.city);                      // 특별시/도 · 시
+  push(a.county); push(a.borough); push(a.city_district); push(a.district); // 시군구
+  push(a.town); push(a.suburb); push(a.quarter); push(a.neighbourhood); push(a.village); // 읍면동
+  const name = parts.slice(0, 3).join(' ').trim();
   return name || null;
 }
 
-// 테마 적용 (감성 ↔ 현장)
+// 현장 테마 고정 (감성 테마 제거)
 function applyTheme() {
-  document.body.classList.toggle('rugged', state.theme === 'rugged');
-  const b = document.getElementById('themeBtn');
-  if (b) b.textContent = state.theme === 'rugged' ? '현장' : '감성';
+  document.body.classList.add('rugged');
 }
 
 // ── PWA 설치 버튼 (홈 화면에 앱으로 추가) ──
