@@ -139,6 +139,11 @@ function render() {
   const wl = data.warnings?.items || [];
   if (wl.some((w) => /호우/.test(w.kind) && w.grade === '경보')) cond = '호우';
   else if (wl.some((w) => /대설/.test(w.kind) && w.grade === '경보')) cond = '대설';
+  // 뇌우 최우선: 대표출처가 '흐림'이어도 어느 출처든(특히 METAR TS) 낙뢰 신호가 있으면 뇌우
+  const anyLightning = SOURCE_ORDER.some((s) => data.sources?.[s]?.current?.lightning);
+  const metarRaw = data.sources?.kma_metar?.current?.rawMetar || '';
+  const tsMetar = /(?:^|\s)[+-]?(?:VC)?TS/.test(metarRaw);
+  if (anyLightning || tsMetar || wl.some((w) => /뇌우|낙뢰/.test(w.kind))) cond = '뇌우';
   const v = document.getElementById('verdict');
   v.className = `verdict ${status}`;
   v.innerHTML = `
