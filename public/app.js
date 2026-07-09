@@ -197,11 +197,14 @@ function render() {
 
   document.getElementById('updated').textContent =
     '업데이트: ' + new Date(data.fetchedAt).toLocaleString('ko-KR');
+  lastRenderedSig = dataSignature(data); // 현재 그려진 값의 지문(불필요한 재렌더 방지)
 }
+let lastRenderedSig = null;
 
 function renderWidget(data, preset, key) {
   const ind = INDICATORS[key];
   const el = document.createElement('div');
+  el.dataset.k = key; // 부분 갱신(예: 해 위치)용 식별자
 
   if (key === 'daylight') {
     const sun = data.sun || {};
@@ -629,6 +632,18 @@ function showSkeleton(region) {
     Array.from({ length: 4 }).map(() => '<div class="scard skel"></div>').join('');
 }
 
+// 화면에 보이는 '값'만 뽑은 지문(타임스탬프 제외) → 갱신 데이터가 같으면 다시 그리지 않아 깜빡임 방지.
+function dataSignature(d) {
+  if (!d) return '';
+  const pick = (c) => (c ? [c.temp, c.windSpeed, c.windGust, c.windDir, c.precipProb, c.precipAmount,
+    c.lightning, c.visibility, c.cloudCover, c.ceiling, c.sky, c.rawMetar, c.feelsLike, c.humidity].join(',') : '');
+  const src = Object.keys(d.sources || {}).sort()
+    .map((k) => `${k}:${d.sources[k]?.available ? 1 : 0}:${pick(d.sources[k]?.current)}`).join('|');
+  const warn = (d.warnings?.items || []).map((w) => w.kind + w.grade).join(',');
+  const mid = (d.mid?.days || []).map((x) => x.date + x.skyPm + x.tempMin + x.tempMax + x.rainPm).join(',');
+  return [src, warn, mid, d.location?.region, d.sun?.isDaylight].join('#');
+}
+
 async function load(via = 'city') {
   const city = CITIES.find((c) => c.name === state.city) || CITIES[0];
   const lat = state.coords?.lat ?? city.lat;
@@ -646,7 +661,7 @@ async function load(via = 'city') {
   if (cached) {
     state.data = cached; state.isDemo = false;
     cached.location = cached.location || {}; cached.location.region = dispRegion;
-    render();
+    if (dataSignature(cached) !== lastRenderedSig) render(); // 이미 같은 값이면 재렌더 생략
   } else {
     showSkeleton(dispRegion);
   }
@@ -660,7 +675,13 @@ async function load(via = 'city') {
     fresh.location = fresh.location || {}; fresh.location.region = dispRegion;
     state.data = fresh; state.isDemo = false;
     try { localStorage.setItem(LS.lastData(dispRegion), JSON.stringify(fresh)); } catch { /* 용량 초과 무시 */ }
-    render();
+    // 값이 그대로면 다시 그리지 않는다 → 이전 값이 유지되고 깜빡이지 않음(새 값이 나올 때만 교체).
+    if (dataSignature(fresh) === lastRenderedSig) {
+      const u = document.getElementById('updated');
+      if (u) u.textContent = '업데이트: ' + new Date(fresh.fetchedAt).toLocaleString('ko-KR');
+    } else {
+      render();
+    }
   } catch (e) {
     // 백엔드 미연결이고 보여줄 캐시도 없으면 데모로 폴백
     if (!state.data || state.isDemo) {
@@ -1113,12 +1134,14 @@ load();
 track('app_open'); // 사용 추적(앱 열림)
 initNative();       // 네이티브(ATT·푸시) — 웹에선 무시
 
-// 해(일출·일몰)가 시간에 따라 조금씩 움직이도록 1분마다 갱신 (모달 열림/백그라운드 시 생략)
-setInterval(() => {
-  const modal = document.getElementById('modal');
-  const modalOpen = modal && !modal.classList.contains('hidden');
-  if (state.data && !modalOpen && document.visibilityState === 'visible') render();
-}, 60000);
+// 해(일출·일몰)만 1분마다 제자리 갱신 → 숫자는 안 건드리고 해만 조금씩 이동(깜빡임 없음)
+function tickSun() {
+  if (!state.data || document.visibilityState !== 'visible') return;
+  const wrap = document.getElementById('widgets');
+  const old = wrap?.querySelector('[data-k="daylight"]');
+  if (old) old.replaceWith(renderWidget(state.data, activePreset(), 'daylight'));
+}
+setInterval(tickSun, 60000);
 
 // PWA 서비스워커 (file:// 데모나 미지원 브라우저에선 조용히 생략)
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
