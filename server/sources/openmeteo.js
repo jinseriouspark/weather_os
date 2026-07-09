@@ -28,7 +28,8 @@ export async function fetchOpenMeteo(lat, lon) {
   const url =
     `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
     `&current=${hourlyVars}&hourly=${hourlyVars}` +
-    `&daily=sunrise,sunset&timezone=auto&wind_speed_unit=ms&forecast_days=2`;
+    `&daily=sunrise,sunset,temperature_2m_max,temperature_2m_min,weather_code,precipitation_probability_max` +
+    `&timezone=auto&wind_speed_unit=ms&forecast_days=7`;
 
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Open-Meteo HTTP ${res.status}`);
@@ -76,9 +77,20 @@ export async function fetchOpenMeteo(lat, lon) {
     });
   });
 
+  // 일별(오늘 포함 7일) — 주간 예보 카드용
+  const dd = data.daily || {};
+  const days = (dd.time || []).map((date, i) => ({
+    date,
+    offset: i, // 0=오늘
+    tempMin: dd.temperature_2m_min?.[i] ?? null,
+    tempMax: dd.temperature_2m_max?.[i] ?? null,
+    sky: decodeWmo(dd.weather_code?.[i]).sky,
+    rainProb: dd.precipitation_probability_max?.[i] ?? null,
+  }));
   const daily = {
-    sunrise: data.daily?.sunrise?.[0] ?? null,
-    sunset: data.daily?.sunset?.[0] ?? null,
+    sunrise: dd.sunrise?.[0] ?? null,
+    sunset: dd.sunset?.[0] ?? null,
+    days,
   };
 
   return sourceResult({ available: true, label: LABEL, current, hourly, daily });

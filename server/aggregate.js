@@ -98,6 +98,7 @@ export async function aggregate({ lat, lon, region, sources }) {
     sources: result,
     warnings: warnings || null,
     mid: mid || null,
+    week: result.openmeteo?.daily?.days || null, // 오늘 포함 7일 (주간 카드용)
     meta: { enabled, missingKeys },
   };
 

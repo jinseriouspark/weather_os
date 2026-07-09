@@ -593,21 +593,38 @@ function renderCockpit(data) {
   });
 }
 
-// ── 주간 예보(중기) 렌더 ──
+// ── 주간 예보 렌더: 오늘 포함 7일 (Open-Meteo 일별). 없으면 기상청 중기(3~10일)로 폴백 ──
 const WEEKDAY = ['일', '월', '화', '수', '목', '금', '토'];
 function renderWeekly(data) {
   const wrap = document.getElementById('weekly-wrap');
   const el = document.getElementById('weekly');
   if (!wrap || !el) return;
+  const title = document.getElementById('weekly-title');
+  const rg = data.location.region || state.city;
+
+  // 1순위: 오늘 포함 7일 (Open-Meteo)
+  if (!hiddenSections().has('weekly') && data.week?.length) {
+    wrap.classList.remove('hidden');
+    if (title) title.textContent = `주간 예보 · ${rg} · 오늘부터 7일`;
+    el.innerHTML = data.week.slice(0, 7).map((d) => {
+      const dt = new Date(d.date + 'T00:00:00');
+      const label = d.offset === 0 ? '오늘' : d.offset === 1 ? '내일' : `${dt.getMonth() + 1}.${dt.getDate()}`;
+      const dow = WEEKDAY[dt.getDay()];
+      return `<div class="wcard${d.offset === 0 ? ' today' : ''}">
+        <div class="wd">${label} <span>(${dow})</span></div>
+        <div class="wsky">${d.sky || '—'}</div>
+        <div class="wtemp"><span class="lo">${d.tempMin != null ? Math.round(d.tempMin) : '—'}°</span> / <span class="hi">${d.tempMax != null ? Math.round(d.tempMax) : '—'}°</span></div>
+        <div class="wrain">${ICONS.rain} ${d.rainProb ?? 0}%</div>
+      </div>`;
+    }).join('');
+    return;
+  }
+
+  // 폴백: 기상청 중기예보(3~10일)
   const mid = data.mid;
   if (hiddenSections().has('weekly') || !mid || !mid.days?.length) { wrap.classList.add('hidden'); return; }
   wrap.classList.remove('hidden');
-  // 제목에 해당 지역(중기 예보구역 대표도시)을 표시
-  const title = document.getElementById('weekly-title');
-  if (title) {
-    const rg = mid.region || data.location.region || state.city;
-    title.textContent = `주간 예보 · ${rg} · 3~10일 후 (기상청 중기)`;
-  }
+  if (title) title.textContent = `주간 예보 · ${mid.region || rg} · 3~10일 후 (기상청 중기)`;
   el.innerHTML = mid.days.map((d) => {
     const dt = new Date(d.date + 'T00:00:00');
     const dow = WEEKDAY[dt.getDay()];
@@ -655,7 +672,8 @@ function dataSignature(d) {
     .map((k) => `${k}:${d.sources[k]?.available ? 1 : 0}:${pick(d.sources[k]?.current)}`).join('|');
   const warn = (d.warnings?.items || []).map((w) => w.kind + w.grade).join(',');
   const mid = (d.mid?.days || []).map((x) => x.date + x.skyPm + x.tempMin + x.tempMax + x.rainPm).join(',');
-  return [src, warn, mid, d.location?.region, d.sun?.isDaylight].join('#');
+  const week = (d.week || []).map((x) => x.date + x.sky + x.tempMin + x.tempMax + x.rainProb).join(',');
+  return [src, warn, mid, week, d.location?.region, d.sun?.isDaylight].join('#');
 }
 
 async function load(via = 'city') {
