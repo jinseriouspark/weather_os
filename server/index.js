@@ -1,16 +1,20 @@
 import express from 'express';
 import session from 'express-session';
+import helmet from 'helmet';
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { config, sourceAvailability } from './config.js';
 import { aggregate } from './aggregate.js';
-import { authRouter } from './auth.js';
 import { logEvent, coarse, getStats } from './metrics.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
+
+// 기본 보안 헤더(hardening). CSP·COEP는 외부 임베드(Windy·GA·OSM)가 많아 끄고,
+// 나머지(nosniff·frameguard·referrer-policy·HSTS 등)만 적용.
+app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
 
 app.use(express.json());
 app.use(
@@ -74,17 +78,17 @@ app.get('/api/weather', async (req, res) => {
   }
 });
 
-// 사용량 통계: 쿼리·가입 건수. STATS_TOKEN 설정 시 ?token= 일치해야 조회.
+// 사용량 통계: 기본 보호(secure-by-default). STATS_TOKEN 미설정이면 아예 비공개.
 app.get('/api/stats', (req, res) => {
   const need = process.env.STATS_TOKEN;
-  if (need && req.query.token !== need) {
-    return res.status(401).json({ error: 'STATS_TOKEN이 필요합니다.' });
+  if (!need) {
+    return res.status(403).json({ error: '통계 보호를 위해 STATS_TOKEN 환경변수를 설정하세요.' });
+  }
+  if (req.query.token !== need) {
+    return res.status(401).json({ error: '토큰이 필요합니다.' });
   }
   res.json(getStats());
 });
-
-// 인증(로그인)
-app.use('/api/auth', authRouter);
 
 // 클라이언트 이벤트 추적(PWA): 앱 열림·설치 등. 비식별(IP·정밀좌표 미기록).
 const TRACK_EVENTS = new Set(['app_open', 'pwa_install', 'pwa_installed', 'drone_add', 'mode_cockpit', 'mode_basic']);
