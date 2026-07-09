@@ -1,0 +1,10 @@
+{
+  "appId": "com.cloudscode.app",
+  "appName": "CloudsCode",
+  "webDir": "public",
+  "ios": { "contentInset": "always" },
+  "server": { "androidScheme": "https" },
+  "plugins": {
+    "PushNotifications": { "presentationOptions": ["badge", "sound", "alert"] }
+  }
+}

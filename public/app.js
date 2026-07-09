@@ -1,6 +1,11 @@
 // CloudsCode 프론트엔드 — 온보딩, 데이터 로드, 대시보드 렌더, 커스터마이징.
 const { ICONS, INDICATORS, PRESETS, SOURCE_ORDER, VERDICT_TEXT, valueFor, evalVerdict, severityScore } = window.WX;
 
+// 네이티브(Capacitor) 앱에선 웹 자산이 capacitor://localhost 에서 로드되므로 API는 절대경로로 서버(Render)를 호출.
+// 웹(브라우저/PWA)에선 상대경로 그대로. 배포 도메인 바뀌면 API_BASE만 교체.
+const IS_NATIVE = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+const API_BASE = IS_NATIVE ? 'https://weather-ops-w0vj.onrender.com' : '';
+
 // 위험도 점수(0 안전 ~ 1 위험) → 초록→노랑→빨강 연속 보간 색
 const SEV_STOPS = [
   [0.0, [104, 232, 156]], // 초록
@@ -546,7 +551,7 @@ async function load(via = 'city') {
   // 2) 뒤에서 최신 데이터 갱신 (화면은 막지 않음)
   document.body.classList.add('loading');
   try {
-    const res = await fetch(`/api/weather?lat=${lat}&lon=${lon}&region=${encodeURIComponent(kmaRegion)}&display=${encodeURIComponent(dispRegion)}&via=${encodeURIComponent(via)}`);
+    const res = await fetch(`${API_BASE}/api/weather?lat=${lat}&lon=${lon}&region=${encodeURIComponent(kmaRegion)}&display=${encodeURIComponent(dispRegion)}&via=${encodeURIComponent(via)}`);
     const fresh = await res.json();
     if (fresh.error) throw new Error(fresh.error);
     fresh.location = fresh.location || {}; fresh.location.region = dispRegion;
@@ -928,9 +933,9 @@ function track(event) {
     // 1) 1st-party 로그(/api/track → /api/stats·Notion)
     const body = JSON.stringify({ event, mode, place, ...utm });
     if (navigator.sendBeacon) {
-      navigator.sendBeacon('/api/track', new Blob([body], { type: 'application/json' }));
+      navigator.sendBeacon(API_BASE + '/api/track', new Blob([body], { type: 'application/json' }));
     } else {
-      fetch('/api/track', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body, keepalive: true }).catch(() => {});
+      fetch(API_BASE + '/api/track', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body, keepalive: true }).catch(() => {});
     }
     // 2) 서드파티(GA4): gtag가 주입돼 있으면 같은 이벤트 전송
     if (window.gtag) window.gtag('event', event, { mode, place });
@@ -969,6 +974,19 @@ function setupInstall() {
   };
 }
 
+// 네이티브 초기화: ATT(광고추적 동의)·푸시 알림 등록. 웹에선 조용히 무시.
+//   플러그인은 Capacitor가 window.Capacitor.Plugins 에 주입 → 번들러 없이 호출 가능.
+async function initNative() {
+  const Cap = window.Capacitor;
+  if (!Cap?.isNativePlatform?.()) return;
+  const P = Cap.Plugins || {};
+  try { await P.AppTrackingTransparency?.requestPermission?.(); } catch { /* iOS 14.5+ ATT 동의 */ }
+  try {
+    const perm = await P.PushNotifications?.requestPermissions?.();
+    if (perm?.receive === 'granted') await P.PushNotifications.register();
+  } catch { /* 푸시 미지원/거부 무시 */ }
+}
+
 function nearestCity(lat, lon) {
   let best = CITIES[0], bd = Infinity;
   for (const c of CITIES) {
@@ -988,6 +1006,7 @@ if (!localStorage.getItem(LS.onboarded)) {
 }
 load();
 track('app_open'); // 사용 추적(앱 열림)
+initNative();       // 네이티브(ATT·푸시) — 웹에선 무시
 
 // PWA 서비스워커 (file:// 데모나 미지원 브라우저에선 조용히 생략)
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
