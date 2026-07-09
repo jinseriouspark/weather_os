@@ -426,6 +426,24 @@ body.scrolled .brand-name { display: none; }
 .preset-opt .po-desc { font-size: 12px; color: var(--ink-soft); margin-top: 5px; }
 .cust-hint { color: var(--ink-soft); font-size: 13px; margin: 4px 0 8px; }
 
+/* 보기 모드 버튼 (기본 ↔ 계기판) */
+.mode-btn { font-weight: 700; }
+.mode-btn.on { background: rgba(111,180,255,0.22) !important; border-color: rgba(111,180,255,0.5) !important; color: #dcebff !important; }
+
+/* ── 계기판 모드: METAR 원문 카드 (항덕) ── */
+.cockpit { margin-bottom: 8px; }
+.mtr-card { background: linear-gradient(180deg, rgba(20,28,40,0.92), rgba(11,17,26,0.92)); border: 1px solid var(--glass-border); border-radius: 16px; padding: 14px 14px 12px; box-shadow: 0 6px 18px rgba(0,0,0,0.28); }
+.mtr-head { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 13px; font-weight: 700; color: var(--accent); letter-spacing: 0.03em; margin-bottom: 10px; }
+.mtr-raw { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 14px; line-height: 2.0; color: var(--ink); word-break: break-word; }
+.mtr-tok { padding: 2px 5px; border-radius: 6px; background: rgba(255,255,255,0.05); border: 1px solid transparent; cursor: pointer; transition: background 0.12s ease; }
+.mtr-tok:hover { background: rgba(255,255,255,0.11); }
+.mtr-tok.dim { color: var(--ink-soft); }
+.mtr-tok.on { background: rgba(111,180,255,0.24); border-color: rgba(111,180,255,0.55); color: #dcebff; }
+.mtr-decode { margin-top: 12px; min-height: 22px; font-size: 13.5px; color: var(--ink); line-height: 1.5; }
+.mtr-decode code { font-family: ui-monospace, "SF Mono", Menlo, monospace; color: var(--accent); font-weight: 700; margin-right: 8px; }
+.mtr-hint { color: var(--ink-faint); font-size: 12px; }
+.mtr-empty { color: var(--ink-soft); font-size: 13px; line-height: 1.6; }
+
 /* 내 드론 등록 */
 .drone-list { display: flex; flex-direction: column; gap: 8px; margin: 8px 0 14px; }
 .drone-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); border-radius: 12px; }

@@ -86,6 +86,7 @@ const state = {
   city: localStorage.getItem(LS.city) || '서울',
   colorBy: localStorage.getItem('wx.colorby') || 'worst', // 출처 박스 색 기준
   theme: localStorage.getItem('wx.theme') || 'soft',      // 'soft'(감성) | 'rugged'(현장)
+  mode: localStorage.getItem('wx.mode') || 'basic',       // 'basic'(기본) | 'cockpit'(계기판·항덕)
   coords: null, // {lat, lon, region, kmaRegion}
   data: null,
 };
@@ -176,6 +177,9 @@ function render() {
 
   // 바람 방향(항덕용: 활주로/바람 감각) — 첫 내용
   renderWindLead(data, preset);
+
+  // 계기판 모드: METAR 원문 카드
+  renderCockpit(data);
 
   // 히어로 배경 지도(위치+바람)
   applyHeroMap();
@@ -471,6 +475,104 @@ function onHeroScroll() {
     document.body.classList.toggle('map-live', live);
   }
   document.body.classList.toggle('scrolled', p > 0.45);
+}
+
+// ── 보기 모드 (기본 ↔ 계기판) ──
+function applyMode() {
+  const cockpit = state.mode === 'cockpit';
+  document.body.classList.toggle('cockpit', cockpit);
+  const btn = document.getElementById('modeBtn');
+  if (btn) { btn.textContent = cockpit ? '✈ 계기판' : '기본'; btn.classList.toggle('on', cockpit); }
+}
+function toggleMode() {
+  state.mode = state.mode === 'cockpit' ? 'basic' : 'cockpit';
+  localStorage.setItem('wx.mode', state.mode);
+  applyMode();
+  track(state.mode === 'cockpit' ? 'mode_cockpit' : 'mode_basic');
+  if (state.data) renderCockpit(state.data);
+}
+
+// ── METAR 원문 토큰 해독 (항덕 계기판) ── 순수 클라이언트, 어떤 METAR 문자열이든 동작
+function decodeWx(t) {
+  const map = { MI: '얕은', BC: '조각', PR: '부분', DR: '낮게 흩날리는', BL: '높이 날리는', SH: '소나기', TS: '뇌우', FZ: '착빙성',
+    DZ: '이슬비', RA: '비', SN: '눈', SG: '싸락눈', IC: '세빙', PL: '얼음싸라기', GR: '우박', GS: '작은 우박', UP: '미확인 강수',
+    BR: '박무', FG: '안개', FU: '연기', VA: '화산재', DU: '먼지', SA: '모래', HZ: '연무', PY: '물보라',
+    PO: '먼지회오리', SQ: '스콜', FC: '용오름', SS: '모래폭풍', DS: '먼지폭풍', VC: '부근' };
+  let s = t, pre = '';
+  if (s[0] === '+') { pre = '강한 '; s = s.slice(1); } else if (s[0] === '-') { pre = '약한 '; s = s.slice(1); }
+  const parts = [];
+  for (let j = 0; j + 2 <= s.length; j += 2) { const g = s.slice(j, j + 2); if (!map[g]) return null; parts.push(map[g]); }
+  return parts.length ? `${pre}${parts.join(' ')}` : null;
+}
+function decodeMetar(raw) {
+  const out = [];
+  const toks = String(raw).replace(/=$/, '').trim().split(/\s+/);
+  const CLOUD = { FEW: '소량(1~2)', SCT: '약간(3~4)', BKN: '많음(5~7)', OVC: '전체(8)' };
+  const num = (x) => (x[0] === 'M' ? -parseInt(x.slice(1), 10) : parseInt(x, 10));
+  toks.forEach((t, idx) => {
+    let m = null;
+    if (idx === 0 && /^[A-Z]{4}$/.test(t)) m = '관측소 (ICAO)';
+    else if (/^\d{6}Z$/.test(t)) m = `관측시각 ${t.slice(0, 2)}일 ${t.slice(2, 4)}:${t.slice(4, 6)} UTC`;
+    else if (/^(VRB|\d{3})\d{2,3}(G\d{2,3})?(KT|MPS)$/.test(t)) {
+      const unit = t.endsWith('MPS') ? 'm/s' : '노트';
+      const b = t.replace(/(KT|MPS)$/, ''); const dir = b.slice(0, 3);
+      const g = b.match(/G(\d{2,3})/); const spd = b.slice(3).replace(/G\d{2,3}/, '');
+      const dd = dir === 'VRB' ? '가변 방향' : (parseInt(spd, 10) === 0 ? '무풍' : `${dir}°`);
+      m = `바람 ${dd} ${parseInt(spd, 10)}${unit}` + (g ? ` (돌풍 ${parseInt(g[1], 10)}${unit})` : '');
+    } else if (/^\d{3}V\d{3}$/.test(t)) m = `풍향 변동 ${t.slice(0, 3)}°~${t.slice(4)}°`;
+    else if (t === 'CAVOK') m = '시정·구름·악기상 양호 (CAVOK)';
+    else if (/^\d{4}$/.test(t)) m = t === '9999' ? '시정 10km 이상' : `시정 ${parseInt(t, 10).toLocaleString()}m`;
+    else if (/^(FEW|SCT|BKN|OVC)\d{3}(CB|TCU)?$/.test(t)) {
+      const cb = /CB/.test(t) ? ' · 적란운' : /TCU/.test(t) ? ' · 탑상적운' : '';
+      m = `구름 ${CLOUD[t.slice(0, 3)]} · ${parseInt(t.slice(3, 6), 10) * 100}ft${cb}`;
+    } else if (t === 'NSC') m = '유의 구름 없음';
+    else if (t === 'NCD') m = '구름 감지 안 됨';
+    else if (t === 'SKC' || t === 'CLR') m = '맑음 (구름 없음)';
+    else if (/^M?\d{2}\/M?\d{2}$/.test(t)) { const [a, b] = t.split('/'); m = `기온 ${num(a)}° / 이슬점 ${num(b)}°`; }
+    else if (/^Q\d{4}$/.test(t)) m = `QNH ${parseInt(t.slice(1), 10)} hPa`;
+    else if (/^A\d{4}$/.test(t)) m = `기압 ${t.slice(1, 3)}.${t.slice(3)} inHg`;
+    else if (t === 'NOSIG') m = '2시간 내 유의 변화 없음';
+    else if (t === 'RMK') m = '이하 비고(RMK)';
+    else if (t === 'BECMG') m = '점진적 변화 예상';
+    else if (t === 'TEMPO') m = '일시적 변화 예상';
+    else if (/^R\d{2}[LRC]?\//.test(t)) m = '활주로 가시거리(RVR)';
+    else m = decodeWx(t);
+    out.push({ t, m });
+  });
+  return out;
+}
+
+// ── 계기판 모드: METAR 원문 카드 ──
+function renderCockpit(data) {
+  const el = document.getElementById('cockpit');
+  if (!el) return;
+  if (state.mode !== 'cockpit') { el.classList.add('hidden'); el.innerHTML = ''; return; }
+  el.classList.remove('hidden');
+  const cur = data.sources?.kma_metar?.current;
+  const ap = cur?.airport;
+  const raw = cur?.rawMetar;
+  if (!raw) {
+    el.innerHTML = `<h2 class="section-title">METAR 계기판</h2>
+      <div class="mtr-card"><div class="mtr-empty">가까운 공항의 METAR 관측이 없어요.${ap ? ` (최근접: ${escHtml(ap.name)} ${escHtml(ap.icao)} · ${Math.round(ap.distanceKm)}km)` : ''}<br>지방 공항은 24시간 관측을 하지 않기도 해요.</div></div>`;
+    return;
+  }
+  const tokens = decodeMetar(raw);
+  const head = ap ? `${ap.icao} · ${ap.name}${ap.distanceKm ? ` · ${Math.round(ap.distanceKm)}km` : ''}` : (cur.station || 'METAR');
+  el.innerHTML = `<h2 class="section-title">METAR 계기판</h2>
+    <div class="mtr-card">
+      <div class="mtr-head">${escHtml(head)}</div>
+      <div class="mtr-raw">${tokens.map((tk, i) => `<span class="mtr-tok${tk.m ? '' : ' dim'}" data-i="${i}">${escHtml(tk.t)}</span>`).join(' ')}</div>
+      <div class="mtr-decode" id="mtr-decode"><span class="mtr-hint">토큰을 탭하면 뜻이 나와요</span></div>
+    </div>`;
+  const dec = el.querySelector('#mtr-decode');
+  el.querySelectorAll('.mtr-tok').forEach((s) => {
+    s.onclick = () => {
+      const tk = tokens[+s.dataset.i];
+      el.querySelectorAll('.mtr-tok').forEach((x) => x.classList.remove('on'));
+      s.classList.add('on');
+      dec.innerHTML = `<code>${escHtml(tk.t)}</code> <span>${tk.m ? escHtml(tk.m) : '(비표준/추가 토큰)'}</span>`;
+    };
+  });
 }
 
 // ── 주간 예보(중기) 렌더 ──
@@ -789,6 +891,8 @@ function initControls() {
   document.getElementById('customizeBtn').onclick = showCustomize;
   const db = document.getElementById('dronesBtn');
   if (db) db.onclick = showDrones;
+  const mb = document.getElementById('modeBtn');
+  if (mb) mb.onclick = toggleMode;
   document.getElementById('modal').onclick = (e) => { if (e.target.id === 'modal') closeModal(); };
   setupMapLive();
 }
@@ -998,6 +1102,7 @@ function nearestCity(lat, lon) {
 
 // ── 시작 ──
 applyTheme();
+applyMode();
 setupInstall();
 window.addEventListener('scroll', onHeroScroll, { passive: true });
 initControls();
