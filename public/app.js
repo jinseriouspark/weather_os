@@ -238,12 +238,13 @@ function sunArc(sun, ind) {
   const sr = hhmm(sun.sunrise), ss = hhmm(sun.sunset);
   const isDay = sun.isDaylight !== false;
 
-  // 낮 진행률 t (0=일출, 1=일몰)
+  // 낮 진행률 t (0=일출, 1=일몰). 날짜가 어긋나도(캐시 등) 흔들리지 않게 '시:분'(하루 중 분)만으로 계산.
   let t = 0.5;
   if (sun.sunrise && sun.sunset) {
-    const s = new Date(sun.sunrise).getTime();
-    const e = new Date(sun.sunset).getTime();
-    if (e > s) t = (Date.now() - s) / (e - s);
+    const minOfDay = (d) => { const x = new Date(d); return x.getHours() * 60 + x.getMinutes() + x.getSeconds() / 60; };
+    const s = minOfDay(sun.sunrise), e = minOfDay(sun.sunset);
+    const now = new Date(); const n = now.getHours() * 60 + now.getMinutes() + now.getSeconds() / 60;
+    if (e > s) t = (n - s) / (e - s);
   }
   const tc = Math.max(0, Math.min(1, t));
 
@@ -924,15 +925,14 @@ function shortPlace(r) {
   return (a.province || a.state || r.name || (r.display_name || '').split(',')[0] || '').trim();
 }
 
-// 지명(행정구역)만: 상호·건물 등 POI는 제외
-const PLACE_CLASSES = new Set(['place', 'boundary']);
+// 상호·건물 등 POI만 골라서 제외(행정구역·지명은 부분검색도 통과되게)
+const POI_CLASSES = new Set(['amenity', 'shop', 'tourism', 'leisure', 'office', 'building', 'craft', 'historic', 'healthcare', 'man_made', 'emergency', 'military', 'highway']);
 async function searchPlaces(q) {
-  // layer=address → 상호(POI) 제외하고 주소·행정구역만
-  const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&countrycodes=kr&accept-language=ko&limit=10&addressdetails=1&layer=address&q=${encodeURIComponent(q)}`;
+  const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&countrycodes=kr&accept-language=ko&limit=12&dedupe=1&addressdetails=1&q=${encodeURIComponent(q)}`;
   const res = await fetch(url);
   if (!res.ok) throw new Error('search failed');
   const arr = await res.json();
-  const places = arr.filter((r) => PLACE_CLASSES.has(r.class));
+  const places = arr.filter((r) => !POI_CLASSES.has(r.class));          // 식당 등 POI만 제외
   const use = places.length ? places : arr;                            // 전부 걸러지면 원본이라도 사용
   const seen = new Set();
   const out = [];
@@ -1112,6 +1112,13 @@ if (!localStorage.getItem(LS.onboarded)) {
 load();
 track('app_open'); // 사용 추적(앱 열림)
 initNative();       // 네이티브(ATT·푸시) — 웹에선 무시
+
+// 해(일출·일몰)가 시간에 따라 조금씩 움직이도록 1분마다 갱신 (모달 열림/백그라운드 시 생략)
+setInterval(() => {
+  const modal = document.getElementById('modal');
+  const modalOpen = modal && !modal.classList.contains('hidden');
+  if (state.data && !modalOpen && document.visibilityState === 'visible') render();
+}, 60000);
 
 // PWA 서비스워커 (file:// 데모나 미지원 브라우저에선 조용히 생략)
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
