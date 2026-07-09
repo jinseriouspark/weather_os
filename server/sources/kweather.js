@@ -10,7 +10,7 @@ import { unavailable } from '../util/normalize.js';
 const LABEL = '케이웨더 (다음)';
 
 export async function fetchKweather(lat, lon, key) {
-  if (!key) return unavailable(LABEL, '키 필요');
+  if (!key) return { ...unavailable(LABEL, '키 필요'), hidden: true }; // 키 없으면 카드 숨김
   // TODO: 케이웨더 현재날씨 API 호출 + 응답 형식 확인 후 makePoint() 로 정규화 연결.
   //   예) const res = await fetch(`https://api.kweather.co.kr/...?apikey=${key}&lat=${lat}&lon=${lon}`);
   return unavailable(LABEL, '연동 준비중');

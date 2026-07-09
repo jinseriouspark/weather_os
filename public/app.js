@@ -129,7 +129,16 @@ function render() {
   // 종합 배지 — Apple Weather 스타일 히어로 (지역 → 큰 온도 → 하늘상태 → 판정)
   const tp = valueFor(data, 'temp');
   const temp = tp.value != null ? `${Math.round(tp.value)}°` : '—';
-  const cond = tp.point?.sky || '';
+  // 하늘상태: 비/눈이 오면 SKY(구름)보다 강수를 우선 표시 ("흐림" → "비")
+  const pt = tp.point || {};
+  let cond = pt.sky || '';
+  const rain = pt.precipType && pt.precipType !== 'none';
+  if (rain) cond = ({ rain: '비', snow: '눈', sleet: '진눈깨비' })[pt.precipType] || '비';
+  else if ((pt.precipAmount || 0) > 0) cond = '비';
+  // 호우/대설 경보면 더 명확히
+  const wl = data.warnings?.items || [];
+  if (wl.some((w) => /호우/.test(w.kind) && w.grade === '경보')) cond = '호우';
+  else if (wl.some((w) => /대설/.test(w.kind) && w.grade === '경보')) cond = '대설';
   const v = document.getElementById('verdict');
   v.className = `verdict ${status}`;
   v.innerHTML = `

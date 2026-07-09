@@ -45,5 +45,8 @@ export function sunTimes(lat, lon, date = new Date()) {
 export function isDaylight(lat, lon, when = new Date()) {
   const { sunrise, sunset } = sunTimes(lat, lon, when);
   if (!sunrise || !sunset) return null;
-  return when >= sunrise && when <= sunset;
+  // 일출/일몰이 UTC 날짜 경계로 어긋날 수 있어(예: 한국은 정오가 UTC 03시) '하루 중 시각'으로 비교.
+  const mod = (ms) => ((ms % 86400000) + 86400000) % 86400000;
+  const w = mod(when.getTime()), s = mod(sunrise.getTime()), e = mod(sunset.getTime());
+  return s <= e ? (w >= s && w <= e) : (w >= s || w <= e);
 }
