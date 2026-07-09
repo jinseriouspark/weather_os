@@ -42,6 +42,16 @@ function ncstBase() {
   return { base_date: date, base_time: `${pad(hh)}00` };
 }
 
+// 초단기예보: 매시 30분 발표, API는 45분부터 제공 (LGT 낙뢰 포함) → base_time 은 HH30
+function ultraFcstBase() {
+  const p = kstParts();
+  let hh = p.hh;
+  if (p.mm < 45) hh -= 1; // 아직 이번 시각(HH30) 미제공이면 직전 시각 발표분
+  let date = ymd(p);
+  if (hh < 0) { hh = 23; date = ymd(prevDay(p)); }
+  return { base_date: date, base_time: `${pad(hh)}30` };
+}
+
 // 단기예보: 02,05,08,11,14,17,20,23시 발표(+10분)
 function vilageBase() {
   const p = kstParts();
@@ -90,7 +100,7 @@ export async function fetchKma(lat, lon, key) {
 
     const [ncst, ultra, vilage] = await Promise.all([
       callKma('getUltraSrtNcst', key, { ...ncstBase(), nx, ny }),
-      callKma('getUltraSrtFcst', key, { ...ncstBase(), nx, ny }).catch(() => []),
+      callKma('getUltraSrtFcst', key, { ...ultraFcstBase(), nx, ny }).catch(() => []),
       callKma('getVilageFcst', key, { ...vilageBase(), nx, ny }),
     ]);
 
