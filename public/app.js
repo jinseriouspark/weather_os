@@ -636,12 +636,12 @@ function setupSpots() {
   };
 }
 
-// ── 보기 모드 (기본 ↔ 계기판) ──
+// ── 보기 모드 (기본 ↔ 집중) — 집중모드에서만 항덕 화면(METAR 계기판)이 보인다 ──
 function applyMode() {
   const cockpit = state.mode === 'cockpit';
   document.body.classList.toggle('cockpit', cockpit);
   const btn = document.getElementById('modeBtn');
-  if (btn) { btn.textContent = cockpit ? '✈ 계기판' : '기본'; btn.classList.toggle('on', cockpit); }
+  if (btn) { btn.textContent = cockpit ? '✈ 집중' : '기본'; btn.classList.toggle('on', cockpit); }
 }
 function toggleMode() {
   state.mode = state.mode === 'cockpit' ? 'basic' : 'cockpit';

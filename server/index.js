@@ -103,17 +103,22 @@ app.get('/api/spots', async (req, res) => {
   const hit = spotCache.get(ck);
   if (hit && Date.now() - hit.at < 3600000) return res.json(hit.data);
 
-  const ql = `[out:json][timeout:8];(
-    nwr["sport"="model_aerodrome"](around:${radius},${lat},${lon});
-    nwr["aeroway"="airstrip"](around:${radius},${lat},${lon});
-  );out center 40;`;
   // OSM 정책상 식별 가능한 User-Agent 필수(없으면 406/429). 여러 미러를 순서대로 시도.
   const MIRRORS = [
     'https://overpass-api.de/api/interpreter',
     'https://overpass.kumi.systems/api/interpreter',
     'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
   ];
-  async function queryOverpass() {
+  const distKm = (la, lo) => {
+    const dx = 111.32 * (la - lat), dy = 88.8 * (lo - lon); // 근사 거리(한국 위도)
+    return Math.round(Math.hypot(dx, dy) * 10) / 10;
+  };
+  async function queryOverpass(r0) {
+    const ql = `[out:json][timeout:8];(
+      nwr["sport"="model_aerodrome"](around:${r0},${lat},${lon});
+      nwr["club"="aeromodelling"](around:${r0},${lat},${lon});
+      nwr["aeroway"="airstrip"](around:${r0},${lat},${lon});
+    );out center 40;`;
     let lastErr = null;
     for (const url of MIRRORS) {
       try {
@@ -132,22 +137,43 @@ app.get('/api/spots', async (req, res) => {
     }
     throw lastErr || new Error('Overpass 응답 없음');
   }
-  try {
-    const j = await queryOverpass();
+  const parseSpots = (j) => {
     const seen = new Set();
-    const spots = (j.elements || []).map((e) => {
+    return (j.elements || []).map((e) => {
       const la = e.lat ?? e.center?.lat, lo = e.lon ?? e.center?.lon;
       if (la == null) return null;
       const name = e.tags?.['name:ko'] || e.tags?.name || (e.tags?.sport === 'model_aerodrome' ? '모형비행장' : '소형 활주로');
-      const kind = e.tags?.sport === 'model_aerodrome' ? 'model' : 'airstrip';
+      const kind = e.tags?.aeroway === 'airstrip' ? 'airstrip' : 'model';
       const key = `${name}|${la.toFixed(3)},${lo.toFixed(3)}`;
       if (seen.has(key)) return null;
       seen.add(key);
-      const dx = 111.32 * (la - lat), dy = 88.8 * (lo - lon); // 근사 거리(한국 위도)
-      return { name, kind, lat: la, lon: lo, distanceKm: Math.round(Math.hypot(dx, dy) * 10) / 10 };
-    }).filter(Boolean).sort((a, b) => a.distanceKm - b.distanceKm).slice(0, 20);
+      return { name, kind, lat: la, lon: lo, distanceKm: distKm(la, lo) };
+    }).filter(Boolean);
+  };
 
-    const data = { spots, radiusKm: radius / 1000 };
+  try {
+    // 1차: 요청 반경 → 없으면 자동으로 100km 확대. OSM이 죽어도 내장 스팟은 서빙.
+    let usedRadius = radius, spots = [], osmOk = true;
+    try {
+      spots = parseSpots(await queryOverpass(radius));
+      if (!spots.length && radius < 100000) {
+        usedRadius = 100000;
+        spots = parseSpots(await queryOverpass(usedRadius));
+      }
+    } catch { osmOk = false; usedRadius = Math.max(radius, 100000); }
+
+    // 내장 스팟(유명 드론공원, 위치 대략) 합치기 — OSM에 이미 있으면(1km 내) 중복 제거
+    for (const s of SEED_SPOTS) {
+      const d = distKm(s.lat, s.lon);
+      if (d > usedRadius / 1000) continue;
+      if (spots.some((x) => Math.hypot(111.32 * (x.lat - s.lat), 88.8 * (x.lon - s.lon)) < 1)) continue;
+      spots.push({ ...s, distanceKm: d });
+    }
+    spots.sort((a, b) => a.distanceKm - b.distanceKm);
+    spots = spots.slice(0, 20);
+
+    if (!osmOk && !spots.length) throw new Error('Overpass 응답 없음');
+    const data = { spots, radiusKm: usedRadius / 1000, osm: osmOk ? 'ok' : 'unavailable' };
     spotCache.set(ck, { at: Date.now(), data });
     if (spotCache.size > 300) spotCache.delete(spotCache.keys().next().value);
     logEvent('spot_search', { lat: coarse(lat), lon: coarse(lon), found: spots.length });
@@ -156,6 +182,12 @@ app.get('/api/spots', async (req, res) => {
     res.status(502).json({ error: `비행장 검색 실패: ${e.message}` });
   }
 });
+
+// 유명 드론·모형비행장 내장 목록(위치는 대략 — 날씨 조회 용도로는 충분). OSM 등록이 늘면 자연 대체됨.
+const SEED_SPOTS = [
+  { name: '광나루 한강공원 모형비행장 (서울)', kind: 'model', lat: 37.549, lon: 127.121 },
+  { name: '왕송호수 모형비행장 (의왕)', kind: 'model', lat: 37.307, lon: 126.941 },
+];
 
 // 클라이언트 이벤트 추적(PWA): 앱 열림·설치 등. 비식별(IP·정밀좌표 미기록).
 const TRACK_EVENTS = new Set(['app_open', 'pwa_install', 'pwa_installed', 'drone_add', 'mode_cockpit', 'mode_basic', 'spot_select']);
