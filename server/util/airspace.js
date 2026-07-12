@@ -41,3 +41,58 @@ export function checkZones(lat, lon) {
 }
 
 const r1 = (n) => Math.round(n * 10) / 10;
+
+// ── V-World 공역 폴리곤 조회 (정밀) ─────────────────────────────
+// 키(VWORLD_KEY)가 있으면 실제 공역 폴리곤에 점이 포함되는지 질의 → 위 근사(checkZones) 대체.
+// 실패(네트워크·키오류)하면 null 반환 → 호출부가 근사 판정으로 폴백.
+const VW_LAYERS = [
+  { data: 'LT_C_AISPRHC', level: 'nogo',    kind: '비행금지구역' },
+  { data: 'LT_C_AISRESC', level: 'caution', kind: '비행제한구역 — 승인 필요' },
+  { data: 'LT_C_AISDNGC', level: 'caution', kind: '위험구역' },
+];
+const vwCache = new Map(); // 공역은 사실상 정적 → 좌표(소수2자리) 단위 6시간 캐시
+const VW_TTL = 6 * 3600 * 1000;
+
+function vwLabel(props) {
+  for (const k of Object.keys(props || {})) {
+    const v = props[k];
+    if (/lbl|name|nm/i.test(k) && typeof v === 'string' && v.trim()) return v.trim();
+  }
+  return null;
+}
+
+export async function vworldZones(lat, lon, key, domain) {
+  if (!key) return null;
+  const ck = `${lat.toFixed(2)},${lon.toFixed(2)}`;
+  const hit = vwCache.get(ck);
+  if (hit && Date.now() - hit.at < VW_TTL) return hit.zones;
+
+  const point = `POINT(${lon} ${lat})`;
+  // 레이어별 조회: 실패=null(불신), 성공인데 안 걸림=[]
+  const perLayer = await Promise.all(VW_LAYERS.map(async (L) => {
+    try {
+      const qs = new URLSearchParams({
+        service: 'data', request: 'GetFeature', data: L.data, key,
+        geomFilter: point, geometry: 'false', format: 'json', size: '10',
+        ...(domain ? { domain } : {}),
+      });
+      const res = await fetch(`https://api.vworld.kr/req/data?${qs}`);
+      if (!res.ok) return null;
+      const j = await res.json();
+      const st = j?.response?.status;
+      if (st === 'NOT_FOUND') return []; // 정상 조회, 해당 없음
+      if (st !== 'OK') return null;
+      const feats = j.response?.result?.featureCollection?.features || [];
+      return feats.map((f) => {
+        const label = vwLabel(f.properties);
+        return { id: label || L.data, name: label || L.kind, level: L.level, distanceKm: null, note: `${L.kind} (V-World)` };
+      });
+    } catch { return null; }
+  }));
+
+  if (perLayer.every((r) => r === null)) return null; // 전부 실패 → 근사 폴백
+  const zones = perLayer.filter(Boolean).flat();
+  vwCache.set(ck, { at: Date.now(), zones });
+  if (vwCache.size > 500) vwCache.delete(vwCache.keys().next().value);
+  return zones;
+}

@@ -546,7 +546,7 @@ function renderFlightCheck(data) {
   el.innerHTML = `<div class="fc-card">${rows.map((r) =>
     `<div class="fc-row ${r.cls}"><span class="fc-dot"></span><span>${r.html}</span></div>`).join('')}
     ${applyBtn}
-    <div class="fc-note">참고용 · 실제 비행 가능 여부는 드론원스톱 승인 기준</div></div>`;
+    <div class="fc-note">참고용 · 실제 비행 가능 여부는 드론원스톱 승인 기준${a?.zonesSource === 'vworld' ? ' · 공역: V-World 정밀' : ' · 공역: 근사'}</div></div>`;
 }
 
 // ── 보기 모드 (기본 ↔ 계기판) ──

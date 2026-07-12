@@ -4,7 +4,7 @@
 //   - /api/weather: network-first → 실패 시 마지막 성공 응답(오프라인에서 직전 날씨 표시)
 //   - 그 외 /api/*: 네트워크 전용 (인증·팀 상태는 캐시하면 안 됨)
 // 새 배포 반영: CACHE_VERSION 을 올리면 이전 캐시가 activate 때 정리된다.
-const CACHE_VERSION = 'wxops-v50';
+const CACHE_VERSION = 'wxops-v51';
 // 상대경로: 루트/서브패스(GitHub Pages) 어디에 배포돼도 SW 위치 기준으로 해석됨
 const SHELL = [
   './', 'index.html',

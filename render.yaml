@@ -35,6 +35,9 @@ services:
       # 서드파티 분석: Google Analytics 4 측정 ID(G-XXXX). 있으면 gtag 자동 주입
       - key: GA_MEASUREMENT_ID
         sync: false
+      # V-World 공역 정밀 조회 키 (선택, 미설정 시 내장 근사 판정)
+      - key: VWORLD_KEY
+        sync: false
       # 사용량 통계(/api/stats) 보호 토큰 (미설정 시 공개)
       - key: STATS_TOKEN
         sync: false

@@ -9,6 +9,8 @@ export const config = {
   owmKey: process.env.OWM_KEY || '',
   kweatherKey: process.env.KWEATHER_KEY || '',
   gaId: process.env.GA_MEASUREMENT_ID || '', // Google Analytics 4 측정 ID(G-XXXX). 있으면 gtag 주입.
+  vworldKey: process.env.VWORLD_KEY || '',   // V-World 인증키 — 공역(비행금지/제한) 정밀 폴리곤 조회
+  vworldDomain: process.env.VWORLD_DOMAIN || 'weather-ops-w0vj.onrender.com', // 키에 등록한 서비스 URL
   apple: {
     teamId: process.env.APPLE_TEAM_ID || '',
     keyId: process.env.APPLE_KEY_ID || '',

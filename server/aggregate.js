@@ -11,24 +11,32 @@ import { fetchKmaWarnings } from './sources/kma_warn.js';
 import { sunTimes, isDaylight } from './util/sun.js';
 import { unavailable } from './util/normalize.js';
 import { AIRPORTS, haversineKm } from './util/metar.js';
-import { checkZones } from './util/airspace.js';
+import { checkZones, vworldZones } from './util/airspace.js';
 
 // 관제권(공항 반경 9.3km) 정보 — 드론 "여기 날려도 되나" 체크용.
 // ⚠️ 참고용 안내: 실제 비행 가능 여부는 드론원스톱(drone.onestop.go.kr) 승인 기준.
 const CTR_KM = 9.3;
-function airspaceInfo(lat, lon) {
+async function airspaceInfo(lat, lon) {
   let best = null;
   for (const a of AIRPORTS) {
     const d = haversineKm(lat, lon, a.lat, a.lon);
     if (!best || d < best.distanceKm) best = { name: a.name, icao: a.icao, distanceKm: d };
   }
   if (!best) return null;
+  // 공역: V-World 정밀 폴리곤 우선(키 있을 때), 실패/미설정 시 내장 근사(checkZones) 폴백
+  let zones = null;
+  try {
+    zones = await withTimeout(vworldZones(lat, lon, config.vworldKey, config.vworldDomain), 3500);
+  } catch { zones = null; }
+  const precise = zones != null;
+  if (!precise) zones = checkZones(lat, lon);
   return {
     name: best.name, icao: best.icao,
     distanceKm: Math.round(best.distanceKm * 10) / 10,
     controlZone: best.distanceKm <= CTR_KM,
     ctrRadiusKm: CTR_KM,
-    zones: checkZones(lat, lon), // P구역(비행금지/제한) 근사 판정
+    zones,
+    zonesSource: precise ? 'vworld' : 'approx', // 정밀/근사 구분(프론트 고지용)
   };
 }
 
@@ -120,7 +128,7 @@ export async function aggregate({ lat, lon, region, sources }) {
     warnings: warnings || null,
     mid: mid || null,
     week: result.openmeteo?.daily?.days || null, // 오늘 포함 7일 (주간 카드용)
-    airspace: airspaceInfo(lat, lon),            // 관제권 체크(드론)
+    airspace: await airspaceInfo(lat, lon),      // 관제권·공역 체크(드론)
     meta: { enabled, missingKeys },
   };
 
