@@ -449,14 +449,41 @@ function renderWindLead(data, preset) {
   // 바람이 불어오는 방향(from) → 화살표는 불어가는 쪽(downwind)을 가리키게 회전
   const rot = dir != null ? dir + 180 : 0;
   // 항덕: 사용 활주로 추정 — 항공기는 맞바람으로 이착륙 → 풍향에 가장 가까운 활주로 번호
-  let rwy = '';
+  let rwy = '', rwyDiagram = '', comp = '';
   if (dir != null) {
     let n = Math.round(dir / 10); if (n === 0) n = 36; // 01~36
     const recip = ((n + 18 - 1) % 36) + 1;
-    rwy = `RWY ${String(n).padStart(2, '0')}/${String(recip).padStart(2, '0')} · <b>${String(n).padStart(2, '0')}</b> 사용 추정`;
+    const nn = String(n).padStart(2, '0'), rr = String(recip).padStart(2, '0');
+    rwy = `RWY ${nn}/${rr} · <b>${nn}</b> 사용 추정`;
+    // 정풍/측풍 성분 (활주로 방위 vs 풍향, kt)
+    if (spd != null) {
+      const rwyDeg = n * 10;
+      const rad = ((dir - rwyDeg) * Math.PI) / 180;
+      const kt = 1.9438;
+      const hw = Math.round(spd * Math.cos(rad) * kt * 10) / 10;
+      const xwRaw = spd * Math.sin(rad) * kt;
+      const xw = Math.round(Math.abs(xwRaw) * 10) / 10;
+      comp = `정풍 ${hw}kt · 측풍 ${xw}kt${xw > 0.4 ? (xwRaw > 0 ? ' (우측에서)' : ' (좌측에서)') : ''}`;
+      // 활주로 다이어그램: 활주로를 사용 방위로 회전 + 바람 화살표(부는 방향)
+      rwyDiagram = `
+      <div class="wl-rwy-diagram" aria-hidden="true">
+        <svg viewBox="0 0 120 120">
+          <g transform="rotate(${rwyDeg} 60 60)">
+            <rect x="48" y="12" width="24" height="96" rx="3" class="rw-strip"/>
+            <line x1="60" y1="26" x2="60" y2="94" class="rw-center"/>
+            <text x="60" y="104" class="rw-num">${nn}</text>
+            <text x="60" y="26" class="rw-num" transform="rotate(180 60 21.5)">${rr}</text>
+          </g>
+          <g transform="rotate(${rot} 60 60)" class="rw-wind">
+            <path d="M60 6 L66 20 L60 16.5 L54 20 Z"/><line x1="60" y1="16" x2="60" y2="34"/>
+          </g>
+        </svg>
+      </div>`;
+    }
   }
   el.innerHTML = `
     <div class="wl-card ${st}">
+      <button id="wlShare" class="wl-share" title="오늘 조건 이미지로 공유" type="button">${ICONS.share || '📤'}</button>
       <div class="wl-compass" style="--rot:${rot}deg">
         <svg viewBox="0 0 120 120" aria-hidden="true">
           <circle cx="60" cy="60" r="54" class="wl-ring"/>
@@ -470,8 +497,93 @@ function renderWindLead(data, preset) {
         <div class="wl-spd">${spd != null ? spd : '—'}<span>m/s</span></div>
         <div class="wl-gust">${gust != null ? `돌풍 ${gust} m/s` : ''}${dir != null ? ` · ${dir}°` : ''}</div>
         ${rwy ? `<div class="wl-rwy">🛬 ${rwy}</div>` : ''}
+        ${comp ? `<div class="wl-comp">${comp}</div>` : ''}
       </div>
+      ${rwyDiagram}
     </div>`;
+  const sb = document.getElementById('wlShare');
+  if (sb) sb.onclick = () => shareCard().catch(() => alert('공유 이미지를 만들지 못했어요.'));
+}
+
+// ── 공유 카드: 오늘 조건을 이미지(1080×1350)로 만들어 공유/저장 — 인스타 콘텐츠 엔진 ──
+async function shareCard() {
+  const data = state.data;
+  if (!data) return;
+  const preset = activePreset();
+  const { status } = evalVerdict(data, preset);
+  const tp = valueFor(data, 'temp');
+  const w = valueFor(data, 'wind'); const g = valueFor(data, 'gust');
+  const p = w.point || {};
+  const region = data.location.region || state.city;
+  const temp = tp.value != null ? `${Math.round(tp.value)}°` : '—';
+  const cond = document.querySelector('#verdict .v-cond')?.textContent?.trim() || (tp.point?.sky ?? '');
+  const dir = p.windDir;
+  let rwyLine = '';
+  if (dir != null) {
+    let n = Math.round(dir / 10); if (n === 0) n = 36;
+    const recip = ((n + 18 - 1) % 36) + 1;
+    rwyLine = `RWY ${String(n).padStart(2, '0')}/${String(recip).padStart(2, '0')} · ${String(n).padStart(2, '0')} 사용 추정`;
+  }
+  const sunset = data.sun?.sunset ? new Date(data.sun.sunset).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) : null;
+
+  const W = 1080, H = 1350;
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const x = c.getContext('2d');
+  // 배경: 다크 그라데이션 + 은은한 광원
+  const bg = x.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, '#0a0f17'); bg.addColorStop(1, '#101b2a');
+  x.fillStyle = bg; x.fillRect(0, 0, W, H);
+  const glow = x.createRadialGradient(W / 2, 300, 50, W / 2, 300, 700);
+  glow.addColorStop(0, 'rgba(111,180,255,0.14)'); glow.addColorStop(1, 'transparent');
+  x.fillStyle = glow; x.fillRect(0, 0, W, H);
+
+  const MONO = 'ui-monospace, "SF Mono", Menlo, monospace';
+  const SANS = '-apple-system, "Apple SD Gothic Neo", "Pretendard", sans-serif';
+  // 브랜드 + 날짜
+  x.fillStyle = '#6fb4ff'; x.font = `800 46px ${MONO}`; x.textAlign = 'left';
+  x.fillText('✈ CloudsCode', 72, 110);
+  x.fillStyle = 'rgba(255,255,255,0.55)'; x.font = `500 34px ${SANS}`; x.textAlign = 'right';
+  x.fillText(new Date().toLocaleString('ko-KR', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }), W - 72, 110);
+  // 지역
+  x.fillStyle = '#e9eef5'; x.font = `700 58px ${SANS}`; x.textAlign = 'center';
+  x.fillText(region, W / 2, 320);
+  // 기온 + 하늘
+  x.font = `200 300px ${SANS}`; x.fillText(temp, W / 2, 620);
+  x.fillStyle = 'rgba(255,255,255,0.7)'; x.font = `600 62px ${SANS}`;
+  x.fillText(cond || '', W / 2, 720);
+  // 판정 배지
+  const VC = { go: '#34e07a', caution: '#ffcf4a', nogo: '#ff6b5e', na: '#b6c2d0' };
+  const vLabel = VERDICT_TEXT[status] || '';
+  x.font = `800 54px ${SANS}`;
+  const bw = x.measureText(vLabel).width + 130;
+  x.fillStyle = VC[status] + '2e';
+  x.strokeStyle = VC[status]; x.lineWidth = 4;
+  if (x.roundRect) { x.beginPath(); x.roundRect((W - bw) / 2, 775, bw, 96, 48); x.fill(); x.stroke(); }
+  x.fillStyle = VC[status]; x.textAlign = 'center';
+  x.beginPath(); x.arc((W - bw) / 2 + 58, 823, 14, 0, 7); x.fill();
+  x.fillText(vLabel, W / 2 + 22, 843);
+  // 스탯 라인들
+  const lines = [];
+  if (w.value != null) lines.push(`바람 ${p.windDirText ? p.windDirText + '풍 ' : ''}${w.value}㎧${g.value != null ? ` · 돌풍 ${g.value}㎧` : ''}`);
+  if (rwyLine) lines.push(rwyLine);
+  if (sunset) lines.push(`일몰 ${sunset}`);
+  x.fillStyle = 'rgba(255,255,255,0.85)'; x.font = `600 46px ${MONO}`;
+  lines.forEach((ln, i) => x.fillText(ln, W / 2, 1000 + i * 78));
+  // 푸터
+  x.fillStyle = 'rgba(255,255,255,0.35)'; x.font = `500 32px ${MONO}`;
+  x.fillText('weather-ops-w0vj.onrender.com', W / 2, H - 60);
+
+  const blob = await new Promise((r) => c.toBlob(r, 'image/png'));
+  if (!blob) throw new Error('canvas');
+  track('share_card');
+  const file = new File([blob], 'cloudscode.png', { type: 'image/png' });
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    await navigator.share({ files: [file], title: 'CloudsCode' }).catch(() => {});
+  } else {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = 'cloudscode.png'; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  }
 }
 
 // 바람 지도 배경 on/off — 섹션 토글('heromap')에 연동
