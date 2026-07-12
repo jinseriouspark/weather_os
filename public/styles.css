@@ -441,6 +441,10 @@ body.scrolled .brand-name { display: none; }
 .fc-row.nogo .fc-dot { background: var(--nogo); box-shadow: 0 0 8px rgba(255,107,94,0.6); }
 .fc-row.nogo { color: #ffd9d4; }
 .fc-row.caution { color: #fff2cc; }
+.fc-apply { display: inline-flex; align-self: flex-start; padding: 8px 14px; border-radius: 999px;
+  background: rgba(255,107,94,0.16); border: 1px solid rgba(255,107,94,0.45); color: #ffd9d4;
+  font-size: 13px; font-weight: 700; text-decoration: none; }
+.fc-apply:active { transform: scale(0.97); }
 .fc-note { font-size: 11px; color: var(--ink-faint); margin-top: 1px; }
 
 /* 보기 모드 버튼 (기본 ↔ 계기판) */

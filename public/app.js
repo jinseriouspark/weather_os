@@ -531,8 +531,12 @@ function renderFlightCheck(data) {
 
   if (!rows.length) { el.classList.add('hidden'); el.innerHTML = ''; return; }
   el.classList.remove('hidden');
+  // 관제권 안이면 드론원스톱 신청 바로가기 (공식 API/SSO는 미제공이라 딥링크로 연결)
+  const applyBtn = a?.controlZone
+    ? `<a class="fc-apply" href="https://drone.onestop.go.kr" target="_blank" rel="noopener">드론원스톱에서 비행승인 신청 →</a>` : '';
   el.innerHTML = `<div class="fc-card">${rows.map((r) =>
     `<div class="fc-row ${r.cls}"><span class="fc-dot"></span><span>${r.html}</span></div>`).join('')}
+    ${applyBtn}
     <div class="fc-note">참고용 · 실제 비행 가능 여부는 드론원스톱 승인 기준</div></div>`;
 }
 
