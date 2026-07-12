@@ -227,6 +227,9 @@ function render() {
   const sp = document.getElementById('spots');
   if (sp) sp.classList.toggle('hidden', hiddenSections().has('spots'));
 
+  // 비행 로그
+  renderFlightLog();
+
   // 계기판 모드: METAR 원문 카드
   renderCockpit(data);
 
@@ -705,6 +708,65 @@ function renderFlightCheck(data) {
     <div class="fc-note">참고용 · 실제 비행 가능 여부는 드론원스톱 승인 기준${a?.zonesSource === 'vworld' ? ' · 공역: V-World 정밀' : ' · 공역: 근사'}</div></div>`;
 }
 
+// ── 비행 로그: '지금 여기서 날렸다' 원탭 기록 — 시각·장소·기체·조건 자동 캡처 ──
+function loadFlights() { try { return JSON.parse(localStorage.getItem('wx.flights')) || []; } catch { return []; } }
+function saveFlights(f) { localStorage.setItem('wx.flights', JSON.stringify(f.slice(0, 200))); }
+
+function logFlightNow() {
+  const d = state.data;
+  if (!d) return;
+  const w = valueFor(d, 'wind'); const g = valueFor(d, 'gust'); const t = valueFor(d, 'temp');
+  const { status } = evalVerdict(d, activePreset());
+  const ad = activeDrone();
+  let note = '';
+  try { note = (prompt('메모 (선택) — 예: 첫 팩, 바람 잔잔') || '').slice(0, 80); } catch { /* prompt 미지원 */ }
+  const f = loadFlights();
+  f.unshift({
+    id: Date.now().toString(36),
+    ts: new Date().toISOString(),
+    place: d.location.region || state.city,
+    drone: ad?.name || null,
+    wind: w.value, gust: g.value, temp: t.value,
+    status, note: note || null,
+  });
+  saveFlights(f);
+  track('flight_log');
+  renderFlightLog();
+}
+
+function renderFlightLog() {
+  const el = document.getElementById('flightlog');
+  if (!el) return;
+  if (hiddenSections().has('flightlog')) { el.classList.add('hidden'); el.innerHTML = ''; return; }
+  el.classList.remove('hidden');
+  const flights = loadFlights();
+  const ym = new Date().toISOString().slice(0, 7);
+  const monthCnt = flights.filter((f) => (f.ts || '').startsWith(ym)).length;
+  const rows = flights.slice(0, 8).map((f) => {
+    const dt = new Date(f.ts);
+    const when = `${dt.getMonth() + 1}.${dt.getDate()} ${String(dt.getHours()).padStart(2, '0')}:${String(dt.getMinutes()).padStart(2, '0')}`;
+    const cond = [f.wind != null && `${f.wind}㎧`, f.gust != null && `G${f.gust}`, f.temp != null && `${Math.round(f.temp)}°`].filter(Boolean).join(' · ');
+    return `<div class="fl-row">
+      <span class="fl-dot ${f.status || 'na'}"></span>
+      <div class="fl-main">
+        <div class="fl-top"><b>${escHtml(f.place || '')}</b>${f.drone ? ` · ${escHtml(f.drone)}` : ''}</div>
+        <div class="fl-sub">${when}${cond ? ` · ${cond}` : ''}${f.note ? ` · ${escHtml(f.note)}` : ''}</div>
+      </div>
+      <button class="fl-del" data-id="${f.id}" title="삭제">×</button>
+    </div>`;
+  }).join('');
+  el.innerHTML = `
+    <div class="section-head"><h2 class="section-title">비행 로그</h2>
+      <span class="fl-stats">${flights.length ? `총 ${flights.length}회 · 이번 달 ${monthCnt}회` : ''}</span></div>
+    <button id="flLogBtn" class="fl-log-btn" type="button">🛫 지금 조건으로 비행 기록</button>
+    ${rows ? `<div class="fl-list">${rows}</div>` : '<p class="spots-empty">아직 기록이 없어요. 날리고 나면 위 버튼으로 남겨보세요 — 시각·장소·기체·바람이 자동 저장돼요.</p>'}`;
+  const btn = document.getElementById('flLogBtn');
+  if (btn) btn.onclick = logFlightNow;
+  el.querySelectorAll('.fl-del').forEach((b) => {
+    b.onclick = () => { saveFlights(loadFlights().filter((x) => x.id !== b.dataset.id)); renderFlightLog(); };
+  });
+}
+
 // ── 내 주변 드론 비행장(스팟): Overpass 검색 → 선택 시 그 좌표의 정밀 날씨로 전환 ──
 function setupSpots() {
   const btn = document.getElementById('spotsBtn');
@@ -1055,7 +1117,7 @@ function showCustomize() {
     </div>`).join('');
   // 섹션 토글 (전역)
   const hideSec = hiddenSections();
-  const SECTIONS = [['flightcheck', '비행 체크(관제권·일몰)'], ['spots', '내 주변 비행장'], ['heromap', '바람 지도 배경'], ['sources', '출처별 비교'], ['weekly', '주간 예보']];
+  const SECTIONS = [['flightcheck', '비행 체크(관제권·일몰)'], ['spots', '내 주변 비행장'], ['flightlog', '비행 로그'], ['heromap', '바람 지도 배경'], ['sources', '출처별 비교'], ['weekly', '주간 예보']];
   const secRows = SECTIONS.map(([k, l]) => `<div class="cust-row">
       <input type="checkbox" data-sec="${k}" ${hideSec.has(k) ? '' : 'checked'} />
       <label>${l}</label>

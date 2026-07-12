@@ -190,7 +190,7 @@ const SEED_SPOTS = [
 ];
 
 // 클라이언트 이벤트 추적(PWA): 앱 열림·설치 등. 비식별(IP·정밀좌표 미기록).
-const TRACK_EVENTS = new Set(['app_open', 'pwa_install', 'pwa_installed', 'drone_add', 'mode_cockpit', 'mode_basic', 'spot_select', 'share_card']);
+const TRACK_EVENTS = new Set(['app_open', 'pwa_install', 'pwa_installed', 'drone_add', 'mode_cockpit', 'mode_basic', 'spot_select', 'share_card', 'flight_log']);
 app.post('/api/track', (req, res) => {
   const type = String(req.body?.event || '');
   if (!TRACK_EVENTS.has(type)) return res.status(400).json({ error: 'unknown event' });
