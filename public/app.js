@@ -505,8 +505,16 @@ function renderFlightCheck(data) {
   if (hiddenSections().has('flightcheck')) { el.classList.add('hidden'); el.innerHTML = ''; return; }
   const rows = [];
 
-  // 관제권: 공항 반경 9.3km 이내면 비행승인 필요
+  // P구역(비행금지·제한) — 원 중심+반경 근사, 최우선 표시
   const a = data.airspace;
+  for (const z of a?.zones || []) {
+    rows.push({
+      cls: z.level,
+      html: `${z.level === 'nogo' ? '🚫' : '⚠️'} <b>${escHtml(z.id)} ${escHtml(z.name)}</b>${z.distanceKm != null ? ` ${z.distanceKm}km` : ''} — ${escHtml(z.note)}`,
+    });
+  }
+
+  // 관제권: 공항 반경 9.3km 이내면 비행승인 필요
   if (a) {
     rows.push(a.controlZone
       ? { cls: 'nogo', html: `⚠️ <b>${escHtml(a.name)}공항 관제권</b> ${a.distanceKm}km — 비행승인 필요 (드론원스톱)` }
@@ -531,8 +539,9 @@ function renderFlightCheck(data) {
 
   if (!rows.length) { el.classList.add('hidden'); el.innerHTML = ''; return; }
   el.classList.remove('hidden');
-  // 관제권 안이면 드론원스톱 신청 바로가기 (공식 API/SSO는 미제공이라 딥링크로 연결)
-  const applyBtn = a?.controlZone
+  // 관제권/공역에 걸리면 드론원스톱 신청 바로가기 (공식 API/SSO는 미제공이라 딥링크로 연결)
+  const needApply = a?.controlZone || (a?.zones || []).length > 0;
+  const applyBtn = needApply
     ? `<a class="fc-apply" href="https://drone.onestop.go.kr" target="_blank" rel="noopener">드론원스톱에서 비행승인 신청 →</a>` : '';
   el.innerHTML = `<div class="fc-card">${rows.map((r) =>
     `<div class="fc-row ${r.cls}"><span class="fc-dot"></span><span>${r.html}</span></div>`).join('')}
@@ -718,7 +727,9 @@ function dataSignature(d) {
   const warn = (d.warnings?.items || []).map((w) => w.kind + w.grade).join(',');
   const mid = (d.mid?.days || []).map((x) => x.date + x.skyPm + x.tempMin + x.tempMax + x.rainPm).join(',');
   const week = (d.week || []).map((x) => x.date + x.sky + x.tempMin + x.tempMax + x.rainProb).join(',');
-  const air = d.airspace ? d.airspace.icao + d.airspace.distanceKm + d.airspace.controlZone : '';
+  const air = d.airspace
+    ? d.airspace.icao + d.airspace.distanceKm + d.airspace.controlZone + (d.airspace.zones || []).map((z) => z.id + z.level).join(',')
+    : '';
   return [src, warn, mid, week, air, d.location?.region, d.sun?.isDaylight].join('#');
 }
 

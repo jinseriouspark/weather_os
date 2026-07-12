@@ -11,6 +11,7 @@ import { fetchKmaWarnings } from './sources/kma_warn.js';
 import { sunTimes, isDaylight } from './util/sun.js';
 import { unavailable } from './util/normalize.js';
 import { AIRPORTS, haversineKm } from './util/metar.js';
+import { checkZones } from './util/airspace.js';
 
 // 관제권(공항 반경 9.3km) 정보 — 드론 "여기 날려도 되나" 체크용.
 // ⚠️ 참고용 안내: 실제 비행 가능 여부는 드론원스톱(drone.onestop.go.kr) 승인 기준.
@@ -27,6 +28,7 @@ function airspaceInfo(lat, lon) {
     distanceKm: Math.round(best.distanceKm * 10) / 10,
     controlZone: best.distanceKm <= CTR_KM,
     ctrRadiusKm: CTR_KM,
+    zones: checkZones(lat, lon), // P구역(비행금지/제한) 근사 판정
   };
 }
 
