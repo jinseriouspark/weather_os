@@ -103,13 +103,41 @@ function loadCust(presetId) {
     return JSON.parse(localStorage.getItem(LS.cust(presetId))) || {};
   } catch { return {}; }
 }
+// ── 오늘 날릴 드론(활성 기체) — 무게로 규제 클래스·판정 기준을 맞춘다 ──
+function activeDrone() {
+  const id = localStorage.getItem('wx.activeDrone');
+  return loadDrones().find((d) => d.id === id) || null;
+}
+// 무게(g) → 국내 무인동력비행장치 규제 클래스 (참고용 안내)
+function droneClass(w) {
+  if (w == null || w === '') return null;
+  const g = Number(w);
+  if (Number.isNaN(g)) return null;
+  if (g <= 250) return { cls: '4종 · 250g 이하', note: '기체신고·조종자격 불요', tight: true };
+  if (g <= 2000) return { cls: '4종 · 2kg 이하', note: '4종 조종자격(온라인교육) 필요' };
+  if (g <= 7000) return { cls: '3종', note: '기체신고 + 3종 자격(필기) 필요' };
+  if (g <= 25000) return { cls: '2종', note: '기체신고 + 2종 자격 필요' };
+  return { cls: '1종', note: '기체신고 + 자격·안전성인증 필요' };
+}
+// 임계값 생성기(presets.js over()와 동일 규약: meta로 그라데이션 색 계산)
+function mkOver(caution, nogo) {
+  const f = (v) => (v == null ? 'na' : v >= nogo ? 'nogo' : v >= caution ? 'caution' : 'go');
+  f.meta = { kind: 'over', caution, nogo };
+  return f;
+}
+
 // 활성 프리셋 = 기본 프리셋 + 사용자 커스터마이징(위젯 on/off, 임계값 override)
 function activePreset() {
   const base = PRESETS[state.presetId];
   const cust = loadCust(state.presetId);
   const hidden = new Set(cust.hidden || []);
   const widgets = (cust.order || base.widgets).filter((w) => !hidden.has(w));
-  return { ...base, widgets, _cust: cust };
+  let thresholds = base.thresholds;
+  // 드론 프리셋 + 경량 기체(≤250g) 선택 시: 바람·돌풍 기준 강화 (경량은 바람에 약함)
+  const ad = state.presetId === 'drone' ? activeDrone() : null;
+  const dc = ad ? droneClass(ad.weight) : null;
+  if (dc?.tight) thresholds = { ...thresholds, wind: mkOver(6, 9), gust: mkOver(8, 11) };
+  return { ...base, widgets, thresholds, _cust: cust, _drone: ad, _droneClass: dc };
 }
 
 // 임계값 평가 (지표 위젯 색상용). 종합 판정/valueFor/SOURCE_ORDER 는 presets.js(window.WX) 공유.
@@ -508,6 +536,18 @@ function renderFlightCheck(data) {
   if (!el) return;
   if (hiddenSections().has('flightcheck')) { el.classList.add('hidden'); el.innerHTML = ''; return; }
   const rows = [];
+
+  // 오늘 날릴 기체: 무게 기준 규제 클래스 안내 (+경량이면 바람 기준 강화 표시)
+  const ad = activeDrone();
+  if (ad) {
+    const dc = droneClass(ad.weight);
+    rows.push({
+      cls: 'go',
+      html: `🛸 <b>${escHtml(ad.name)}</b>${dc ? ` · ${escHtml(String(ad.weight))}g — ${escHtml(dc.cls)}: ${escHtml(dc.note)}${dc.tight ? ' · 경량 바람기준(6/9㎧) 적용' : ''}` : ' · 무게를 입력하면 규제 기준을 알려드려요'}`,
+    });
+  } else if (loadDrones().length) {
+    rows.push({ cls: 'caution', html: '내 드론에서 <b>오늘 날릴 기체</b>를 선택하면 맞춤 판정을 해드려요' });
+  }
 
   // P구역(비행금지·제한) — 원 중심+반경 근사, 최우선 표시
   const a = data.airspace;
@@ -944,18 +984,20 @@ function saveDrones(d) { localStorage.setItem('wx.drones', JSON.stringify(d)); }
 
 function showDrones() {
   const drones = loadDrones();
+  const activeId = localStorage.getItem('wx.activeDrone');
   const list = drones.length ? drones.map((d) => {
     const spec = [d.frame && `기체 ${d.frame}`, d.motor && `모터 ${d.motor}`, d.battery && `배터리 ${d.battery}`, d.weight && `${d.weight}g`]
       .filter(Boolean).map(escHtml).join(' · ') || '사양 미입력';
-    return `<div class="drone-row">
-      <div class="drone-main"><div class="drone-name">${escHtml(d.name)}</div><div class="drone-spec">${spec}</div></div>
+    const on = d.id === activeId;
+    return `<div class="drone-row${on ? ' active' : ''}" data-sel="${d.id}">
+      <div class="drone-main"><div class="drone-name">${escHtml(d.name)}${on ? ' <span class="drone-badge">오늘 비행</span>' : ''}</div><div class="drone-spec">${spec}</div></div>
       <button class="btn-ghost drone-del" data-id="${d.id}">삭제</button>
     </div>`;
   }).join('') : '<p class="cust-hint">등록된 드론이 없어요. 아래에서 추가하세요.</p>';
 
   openModal(`
     <h2>🛩️ 내 드론</h2>
-    <p class="cust-hint">오늘 날리거나 관리하는 드론을 등록하세요. 지금은 이 기기에 저장되고, 로그인을 붙이면 계정에 동기화돼요.</p>
+    <p class="cust-hint">기체를 탭하면 <b>오늘 날릴 드론</b>으로 선택돼요 — 무게 기준 규제·바람 판정이 맞춤 적용됩니다. (이 기기에 저장, 로그인 붙이면 계정 동기화)</p>
     <div class="drone-list">${list}</div>
     <div class="drone-form">
       <input id="dr-name" placeholder="이름 (예: Mavic 3 / 5인치 프리스타일)" maxlength="40" />
@@ -979,7 +1021,23 @@ function showDrones() {
     showDrones();
   };
   document.querySelectorAll('.drone-del').forEach((b) => {
-    b.onclick = () => { saveDrones(loadDrones().filter((x) => x.id !== b.dataset.id)); showDrones(); };
+    b.onclick = (e) => {
+      e.stopPropagation();
+      saveDrones(loadDrones().filter((x) => x.id !== b.dataset.id));
+      if (localStorage.getItem('wx.activeDrone') === b.dataset.id) localStorage.removeItem('wx.activeDrone');
+      showDrones();
+    };
+  });
+  // 기체 탭 → 오늘 날릴 드론 선택(토글) → 판정 즉시 반영
+  document.querySelectorAll('.drone-row[data-sel]').forEach((r) => {
+    r.onclick = () => {
+      const id = r.dataset.sel;
+      const cur = localStorage.getItem('wx.activeDrone');
+      if (cur === id) localStorage.removeItem('wx.activeDrone');
+      else localStorage.setItem('wx.activeDrone', id);
+      showDrones();
+      if (state.data) render();
+    };
   });
   document.getElementById('dr-close').onclick = closeModal;
 }

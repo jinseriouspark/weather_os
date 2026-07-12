@@ -121,7 +121,7 @@ app.get('/api/spots', async (req, res) => {
           method: 'POST',
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
-            'User-Agent': 'CloudsCode/1.0 (드론 비행장 검색; weather-ops-w0vj.onrender.com)',
+            'User-Agent': 'CloudsCode/1.0 (drone-airfield-search; weather-ops-w0vj.onrender.com)', // 헤더는 ASCII만 허용
             Accept: 'application/json',
           },
           body: 'data=' + encodeURIComponent(ql),
