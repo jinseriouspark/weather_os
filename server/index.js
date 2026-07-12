@@ -107,14 +107,33 @@ app.get('/api/spots', async (req, res) => {
     nwr["sport"="model_aerodrome"](around:${radius},${lat},${lon});
     nwr["aeroway"="airstrip"](around:${radius},${lat},${lon});
   );out center 40;`;
+  // OSM 정책상 식별 가능한 User-Agent 필수(없으면 406/429). 여러 미러를 순서대로 시도.
+  const MIRRORS = [
+    'https://overpass-api.de/api/interpreter',
+    'https://overpass.kumi.systems/api/interpreter',
+    'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
+  ];
+  async function queryOverpass() {
+    let lastErr = null;
+    for (const url of MIRRORS) {
+      try {
+        const r = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'User-Agent': 'CloudsCode/1.0 (드론 비행장 검색; weather-ops-w0vj.onrender.com)',
+            Accept: 'application/json',
+          },
+          body: 'data=' + encodeURIComponent(ql),
+        });
+        if (r.ok) return await r.json();
+        lastErr = new Error(`Overpass HTTP ${r.status}`);
+      } catch (e) { lastErr = e; }
+    }
+    throw lastErr || new Error('Overpass 응답 없음');
+  }
   try {
-    const r = await fetch('https://overpass-api.de/api/interpreter', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: 'data=' + encodeURIComponent(ql),
-    });
-    if (!r.ok) throw new Error(`Overpass HTTP ${r.status}`);
-    const j = await r.json();
+    const j = await queryOverpass();
     const seen = new Set();
     const spots = (j.elements || []).map((e) => {
       const la = e.lat ?? e.center?.lat, lo = e.lon ?? e.center?.lon;
