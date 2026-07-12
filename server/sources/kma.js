@@ -32,9 +32,9 @@ function prevDay(p) {
   return { y: dt.getUTCFullYear(), m: dt.getUTCMonth() + 1, d: dt.getUTCDate() };
 }
 
-// 실황: 매시 정각 발표, 약 40분 뒤 제공
-function ncstBase() {
-  const p = kstParts();
+// 실황: 매시 정각 발표, 약 40분 뒤 제공. d 로 기준시각을 옮겨 '한 시간 전' 재시도 가능.
+function ncstBase(d = new Date()) {
+  const p = kstParts(d);
   let hh = p.hh;
   if (p.mm < 45) hh -= 1; // 아직 미제공 시간이면 한 시간 전
   let date = ymd(p);
@@ -43,8 +43,8 @@ function ncstBase() {
 }
 
 // 초단기예보: 매시 30분 발표, API는 45분부터 제공 (LGT 낙뢰 포함) → base_time 은 HH30
-function ultraFcstBase() {
-  const p = kstParts();
+function ultraFcstBase(d = new Date()) {
+  const p = kstParts(d);
   let hh = p.hh;
   if (p.mm < 45) hh -= 1; // 아직 이번 시각(HH30) 미제공이면 직전 시각 발표분
   let date = ymd(p);
@@ -53,8 +53,8 @@ function ultraFcstBase() {
 }
 
 // 단기예보: 02,05,08,11,14,17,20,23시 발표(+10분)
-function vilageBase() {
-  const p = kstParts();
+function vilageBase(d = new Date()) {
+  const p = kstParts(d);
   const slots = [2, 5, 8, 11, 14, 17, 20, 23];
   const cur = p.hh + p.mm / 60;
   let chosen = null;
@@ -62,6 +62,16 @@ function vilageBase() {
   let date = ymd(p);
   if (chosen === null) { chosen = 23; date = ymd(prevDay(p)); }
   return { base_date: date, base_time: `${pad(chosen)}00` };
+}
+
+const H = 3600 * 1000;
+// 발표 지연 대응: 이번 기준시각이 비어있으면(지연/NO_DATA) 한 단계 전 발표분으로 재시도
+async function callWithFallback(endpoint, key, baseFn, backMs, nx, ny) {
+  try {
+    const items = await callKma(endpoint, key, { ...baseFn(), nx, ny });
+    if (items.length) return items;
+  } catch { /* 아래 재시도 */ }
+  return callKma(endpoint, key, { ...baseFn(new Date(Date.now() - backMs)), nx, ny });
 }
 
 async function callKma(endpoint, key, params) {
@@ -93,15 +103,34 @@ async function callKma(endpoint, key, params) {
 const SKY = { 1: '맑음', 3: '구름많음', 4: '흐림' };
 const PTY = { 0: 'none', 1: 'rain', 2: 'sleet', 3: 'snow', 4: 'rain', 5: 'rain', 6: 'sleet', 7: 'snow' };
 
+// 격자별 마지막 성공 결과(1시간) — 기상청이 순간적으로 죽어도 OFF 대신 최근 관측을 보여준다.
+const lastGood = new Map();
+
 export async function fetchKma(lat, lon, key) {
   if (!key) return unavailable(LABEL, '키 필요');
+  const { nx, ny } = latLonToGrid(lat, lon);
+  const gk = `${nx},${ny}`;
   try {
-    const { nx, ny } = latLonToGrid(lat, lon);
+    const res = await fetchKmaOnce(nx, ny, key);
+    lastGood.set(gk, { at: Date.now(), res });
+    if (lastGood.size > 200) lastGood.delete(lastGood.keys().next().value);
+    return res;
+  } catch (e) {
+    const g = lastGood.get(gk);
+    if (g && Date.now() - g.at < H) {
+      // 일시 장애 → 최근 성공값으로 대체(비고만 표시)
+      return { ...g.res, reason: '기상청 일시 지연 — 최근 관측 표시' };
+    }
+    return unavailable(LABEL, `오류: ${e.message}`);
+  }
+}
 
+async function fetchKmaOnce(nx, ny, key) {
+  {
     const [ncst, ultra, vilage] = await Promise.all([
-      callKma('getUltraSrtNcst', key, { ...ncstBase(), nx, ny }),
-      callKma('getUltraSrtFcst', key, { ...ultraFcstBase(), nx, ny }).catch(() => []),
-      callKma('getVilageFcst', key, { ...vilageBase(), nx, ny }),
+      callWithFallback('getUltraSrtNcst', key, ncstBase, H, nx, ny),
+      callWithFallback('getUltraSrtFcst', key, ultraFcstBase, H, nx, ny).catch(() => []),
+      callWithFallback('getVilageFcst', key, vilageBase, 3 * H, nx, ny),
     ]);
 
     // ── 현재(실황) ──
@@ -156,7 +185,5 @@ export async function fetchKma(lat, lon, key) {
     }
 
     return sourceResult({ available: true, label: LABEL, current, hourly });
-  } catch (e) {
-    return unavailable(LABEL, `오류: ${e.message}`);
   }
 }
