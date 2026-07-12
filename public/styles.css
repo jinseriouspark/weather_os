@@ -447,6 +447,21 @@ body.scrolled .brand-name { display: none; }
 .fc-apply:active { transform: scale(0.97); }
 .fc-note { font-size: 11px; color: var(--ink-faint); margin-top: 1px; }
 
+/* ── 내 주변 비행장(스팟) ── */
+.spots { margin: 10px 0 2px; }
+.spots-btn { width: 100%; padding: 12px 16px; border-radius: 14px; font-size: 14px; font-weight: 700;
+  color: var(--ink); background: rgba(111,180,255,0.1); border: 1px dashed rgba(111,180,255,0.45); cursor: pointer; }
+.spots-btn:disabled { opacity: 0.6; cursor: wait; }
+.spots-btn:active { transform: scale(0.985); }
+.spots-list { display: flex; flex-direction: column; gap: 7px; margin-top: 9px; }
+.spot-chip { display: flex; justify-content: space-between; align-items: center; gap: 10px;
+  padding: 11px 14px; border-radius: 12px; border: 1px solid var(--glass-border);
+  background: rgba(255,255,255,0.05); color: var(--ink); font-size: 14px; cursor: pointer; text-align: left; }
+.spot-chip:active { transform: scale(0.985); background: rgba(111,180,255,0.14); }
+.spot-chip .sp-name { font-weight: 700; }
+.spot-chip .sp-dist { color: var(--ink-soft); font-size: 12.5px; flex: none; }
+.spots-empty { font-size: 13px; color: var(--ink-soft); line-height: 1.6; padding: 10px 4px; }
+
 /* 보기 모드 버튼 (기본 ↔ 계기판) */
 .mode-btn { font-weight: 700; }
 .mode-btn.on { background: rgba(111,180,255,0.22) !important; border-color: rgba(111,180,255,0.5) !important; color: #dcebff !important; }

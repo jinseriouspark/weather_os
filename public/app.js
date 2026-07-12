@@ -195,6 +195,10 @@ function render() {
   // 비행 체크(관제권·일몰) — 드론 "여기 날려도 되나"
   renderFlightCheck(data);
 
+  // 내 주변 비행장 섹션 표시/숨김
+  const sp = document.getElementById('spots');
+  if (sp) sp.classList.toggle('hidden', hiddenSections().has('spots'));
+
   // 계기판 모드: METAR 원문 카드
   renderCockpit(data);
 
@@ -549,6 +553,49 @@ function renderFlightCheck(data) {
     <div class="fc-note">참고용 · 실제 비행 가능 여부는 드론원스톱 승인 기준${a?.zonesSource === 'vworld' ? ' · 공역: V-World 정밀' : ' · 공역: 근사'}</div></div>`;
 }
 
+// ── 내 주변 드론 비행장(스팟): Overpass 검색 → 선택 시 그 좌표의 정밀 날씨로 전환 ──
+function setupSpots() {
+  const btn = document.getElementById('spotsBtn');
+  const list = document.getElementById('spotsList');
+  if (!btn || !list) return;
+  btn.onclick = async () => {
+    if (state.lat == null) return alert('먼저 위치(GPS 또는 지역 검색)를 잡아주세요.');
+    btn.disabled = true; btn.textContent = '🛩 비행장 찾는 중…';
+    try {
+      const res = await fetch(`${API_BASE}/api/spots?lat=${state.lat}&lon=${state.lon}`);
+      const j = await res.json();
+      if (j.error) throw new Error(j.error);
+      list.classList.remove('hidden');
+      if (!j.spots.length) {
+        list.innerHTML = `<div class="spots-empty">반경 ${j.radiusKm}km 안에 등록된 비행장이 없어요. (OpenStreetMap 기준 — 아는 곳이 있으면 OSM에 등록하면 앱에도 떠요)</div>`;
+      } else {
+        list.innerHTML = j.spots.map((s, i) =>
+          `<button class="spot-chip" data-i="${i}" type="button">
+            <span class="sp-name">${s.kind === 'model' ? '🛩' : '🛬'} ${escHtml(s.name)}</span>
+            <span class="sp-dist">${s.distanceKm}km</span>
+          </button>`).join('');
+        list.querySelectorAll('.spot-chip').forEach((c) => {
+          c.onclick = () => {
+            const s = j.spots[+c.dataset.i];
+            const near = nearestCity(s.lat, s.lon);
+            state.coords = { lat: s.lat, lon: s.lon, region: s.name, kmaRegion: near.name };
+            state.city = s.name;
+            syncControls();
+            track('spot_select');
+            load('spot'); // 스팟 좌표의 정밀 날씨·바람으로 전체 화면 전환
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          };
+        });
+      }
+    } catch (e) {
+      list.classList.remove('hidden');
+      list.innerHTML = `<div class="spots-empty">검색 실패: ${escHtml(e.message)} — 잠시 후 다시 시도해주세요.</div>`;
+    } finally {
+      btn.disabled = false; btn.textContent = '🛩 내 주변 비행장 찾기';
+    }
+  };
+}
+
 // ── 보기 모드 (기본 ↔ 계기판) ──
 function applyMode() {
   const cockpit = state.mode === 'cockpit';
@@ -856,7 +903,7 @@ function showCustomize() {
     </div>`).join('');
   // 섹션 토글 (전역)
   const hideSec = hiddenSections();
-  const SECTIONS = [['flightcheck', '비행 체크(관제권·일몰)'], ['heromap', '바람 지도 배경'], ['sources', '출처별 비교'], ['weekly', '주간 예보']];
+  const SECTIONS = [['flightcheck', '비행 체크(관제권·일몰)'], ['spots', '내 주변 비행장'], ['heromap', '바람 지도 배경'], ['sources', '출처별 비교'], ['weekly', '주간 예보']];
   const secRows = SECTIONS.map(([k, l]) => `<div class="cust-row">
       <input type="checkbox" data-sec="${k}" ${hideSec.has(k) ? '' : 'checked'} />
       <label>${l}</label>
@@ -1004,6 +1051,7 @@ function initControls() {
   if (db) db.onclick = showDrones;
   const mb = document.getElementById('modeBtn');
   if (mb) mb.onclick = toggleMode;
+  setupSpots();
   document.getElementById('modal').onclick = (e) => { if (e.target.id === 'modal') closeModal(); };
   setupMapLive();
 }

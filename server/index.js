@@ -90,8 +90,56 @@ app.get('/api/stats', (req, res) => {
   res.json(getStats());
 });
 
+// 내 주변 드론 비행장(스팟) 검색 — OpenStreetMap Overpass (무료·무키).
+//   모형비행장(sport=model_aerodrome)과 소형 활주로(aeroway=airstrip)를 반경 내 조회.
+const spotCache = new Map(); // 좌표(소수1자리)+반경 → 1시간 캐시 (Overpass 부하 예의)
+app.get('/api/spots', async (req, res) => {
+  const lat = parseFloat(req.query.lat);
+  const lon = parseFloat(req.query.lon);
+  if (Number.isNaN(lat) || Number.isNaN(lon)) return res.status(400).json({ error: 'lat, lon 필요' });
+  const radius = Math.min(100000, Math.max(5000, parseInt(req.query.r, 10) || 40000)); // 5~100km, 기본 40km
+
+  const ck = `${lat.toFixed(1)},${lon.toFixed(1)},${radius}`;
+  const hit = spotCache.get(ck);
+  if (hit && Date.now() - hit.at < 3600000) return res.json(hit.data);
+
+  const ql = `[out:json][timeout:8];(
+    nwr["sport"="model_aerodrome"](around:${radius},${lat},${lon});
+    nwr["aeroway"="airstrip"](around:${radius},${lat},${lon});
+  );out center 40;`;
+  try {
+    const r = await fetch('https://overpass-api.de/api/interpreter', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: 'data=' + encodeURIComponent(ql),
+    });
+    if (!r.ok) throw new Error(`Overpass HTTP ${r.status}`);
+    const j = await r.json();
+    const seen = new Set();
+    const spots = (j.elements || []).map((e) => {
+      const la = e.lat ?? e.center?.lat, lo = e.lon ?? e.center?.lon;
+      if (la == null) return null;
+      const name = e.tags?.['name:ko'] || e.tags?.name || (e.tags?.sport === 'model_aerodrome' ? '모형비행장' : '소형 활주로');
+      const kind = e.tags?.sport === 'model_aerodrome' ? 'model' : 'airstrip';
+      const key = `${name}|${la.toFixed(3)},${lo.toFixed(3)}`;
+      if (seen.has(key)) return null;
+      seen.add(key);
+      const dx = 111.32 * (la - lat), dy = 88.8 * (lo - lon); // 근사 거리(한국 위도)
+      return { name, kind, lat: la, lon: lo, distanceKm: Math.round(Math.hypot(dx, dy) * 10) / 10 };
+    }).filter(Boolean).sort((a, b) => a.distanceKm - b.distanceKm).slice(0, 20);
+
+    const data = { spots, radiusKm: radius / 1000 };
+    spotCache.set(ck, { at: Date.now(), data });
+    if (spotCache.size > 300) spotCache.delete(spotCache.keys().next().value);
+    logEvent('spot_search', { lat: coarse(lat), lon: coarse(lon), found: spots.length });
+    res.json(data);
+  } catch (e) {
+    res.status(502).json({ error: `비행장 검색 실패: ${e.message}` });
+  }
+});
+
 // 클라이언트 이벤트 추적(PWA): 앱 열림·설치 등. 비식별(IP·정밀좌표 미기록).
-const TRACK_EVENTS = new Set(['app_open', 'pwa_install', 'pwa_installed', 'drone_add', 'mode_cockpit', 'mode_basic']);
+const TRACK_EVENTS = new Set(['app_open', 'pwa_install', 'pwa_installed', 'drone_add', 'mode_cockpit', 'mode_basic', 'spot_select']);
 app.post('/api/track', (req, res) => {
   const type = String(req.body?.event || '');
   if (!TRACK_EVENTS.has(type)) return res.status(400).json({ error: 'unknown event' });
