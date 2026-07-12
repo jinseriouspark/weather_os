@@ -192,6 +192,9 @@ function render() {
   // 바람 방향(항덕용: 활주로/바람 감각) — 첫 내용
   renderWindLead(data, preset);
 
+  // 비행 체크(관제권·일몰) — 드론 "여기 날려도 되나"
+  renderFlightCheck(data);
+
   // 계기판 모드: METAR 원문 카드
   renderCockpit(data);
 
@@ -495,6 +498,44 @@ function onHeroScroll() {
   document.body.classList.toggle('scrolled', p > 0.45);
 }
 
+// ── 비행 체크: 관제권(공항 9.3km) + 일몰까지 남은 시간 — "여기 날려도 되나" 3초 판정 ──
+function renderFlightCheck(data) {
+  const el = document.getElementById('flightcheck');
+  if (!el) return;
+  if (hiddenSections().has('flightcheck')) { el.classList.add('hidden'); el.innerHTML = ''; return; }
+  const rows = [];
+
+  // 관제권: 공항 반경 9.3km 이내면 비행승인 필요
+  const a = data.airspace;
+  if (a) {
+    rows.push(a.controlZone
+      ? { cls: 'nogo', html: `⚠️ <b>${escHtml(a.name)}공항 관제권</b> ${a.distanceKm}km — 비행승인 필요 (드론원스톱)` }
+      : { cls: 'go', html: `관제권 밖 · 최근접 ${escHtml(a.name)}공항 ${a.distanceKm}km` });
+  }
+
+  // 일몰: 야간 비행은 특별승인 필요 → 남은 시간 표시
+  if (data.sun?.sunset) {
+    const minOfDay = (d) => { const x = new Date(d); return x.getHours() * 60 + x.getMinutes(); };
+    const now = new Date(); const n = now.getHours() * 60 + now.getMinutes();
+    const ss = minOfDay(data.sun.sunset);
+    const isDay = data.sun.isDaylight !== false;
+    if (!isDay) rows.push({ cls: 'nogo', html: '🌙 야간 — 특별승인 없이 비행 금지' });
+    else {
+      const left = ss - n;
+      if (left > 0) {
+        const h = Math.floor(left / 60), m = left % 60;
+        rows.push({ cls: left <= 60 ? 'caution' : 'go', html: `일몰까지 ${h > 0 ? h + '시간 ' : ''}${m}분` });
+      }
+    }
+  }
+
+  if (!rows.length) { el.classList.add('hidden'); el.innerHTML = ''; return; }
+  el.classList.remove('hidden');
+  el.innerHTML = `<div class="fc-card">${rows.map((r) =>
+    `<div class="fc-row ${r.cls}"><span class="fc-dot"></span><span>${r.html}</span></div>`).join('')}
+    <div class="fc-note">참고용 · 실제 비행 가능 여부는 드론원스톱 승인 기준</div></div>`;
+}
+
 // ── 보기 모드 (기본 ↔ 계기판) ──
 function applyMode() {
   const cockpit = state.mode === 'cockpit';
@@ -673,7 +714,8 @@ function dataSignature(d) {
   const warn = (d.warnings?.items || []).map((w) => w.kind + w.grade).join(',');
   const mid = (d.mid?.days || []).map((x) => x.date + x.skyPm + x.tempMin + x.tempMax + x.rainPm).join(',');
   const week = (d.week || []).map((x) => x.date + x.sky + x.tempMin + x.tempMax + x.rainProb).join(',');
-  return [src, warn, mid, week, d.location?.region, d.sun?.isDaylight].join('#');
+  const air = d.airspace ? d.airspace.icao + d.airspace.distanceKm + d.airspace.controlZone : '';
+  return [src, warn, mid, week, air, d.location?.region, d.sun?.isDaylight].join('#');
 }
 
 async function load(via = 'city') {
@@ -799,7 +841,7 @@ function showCustomize() {
     </div>`).join('');
   // 섹션 토글 (전역)
   const hideSec = hiddenSections();
-  const SECTIONS = [['heromap', '바람 지도 배경'], ['sources', '출처별 비교'], ['weekly', '주간 예보']];
+  const SECTIONS = [['flightcheck', '비행 체크(관제권·일몰)'], ['heromap', '바람 지도 배경'], ['sources', '출처별 비교'], ['weekly', '주간 예보']];
   const secRows = SECTIONS.map(([k, l]) => `<div class="cust-row">
       <input type="checkbox" data-sec="${k}" ${hideSec.has(k) ? '' : 'checked'} />
       <label>${l}</label>

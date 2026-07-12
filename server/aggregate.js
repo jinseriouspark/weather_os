@@ -10,6 +10,25 @@ import { fetchKmaMid } from './sources/kma_mid.js';
 import { fetchKmaWarnings } from './sources/kma_warn.js';
 import { sunTimes, isDaylight } from './util/sun.js';
 import { unavailable } from './util/normalize.js';
+import { AIRPORTS, haversineKm } from './util/metar.js';
+
+// 관제권(공항 반경 9.3km) 정보 — 드론 "여기 날려도 되나" 체크용.
+// ⚠️ 참고용 안내: 실제 비행 가능 여부는 드론원스톱(drone.onestop.go.kr) 승인 기준.
+const CTR_KM = 9.3;
+function airspaceInfo(lat, lon) {
+  let best = null;
+  for (const a of AIRPORTS) {
+    const d = haversineKm(lat, lon, a.lat, a.lon);
+    if (!best || d < best.distanceKm) best = { name: a.name, icao: a.icao, distanceKm: d };
+  }
+  if (!best) return null;
+  return {
+    name: best.name, icao: best.icao,
+    distanceKm: Math.round(best.distanceKm * 10) / 10,
+    controlZone: best.distanceKm <= CTR_KM,
+    ctrRadiusKm: CTR_KM,
+  };
+}
 
 const ALL = ['openmeteo', 'kma', 'kma_metar', 'kweather', 'owm', 'apple'];
 
@@ -99,6 +118,7 @@ export async function aggregate({ lat, lon, region, sources }) {
     warnings: warnings || null,
     mid: mid || null,
     week: result.openmeteo?.daily?.days || null, // 오늘 포함 7일 (주간 카드용)
+    airspace: airspaceInfo(lat, lon),            // 관제권 체크(드론)
     meta: { enabled, missingKeys },
   };
 
