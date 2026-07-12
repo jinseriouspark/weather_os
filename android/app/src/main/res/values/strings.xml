@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">CloudsCode</string>
+    <string name="title_activity_main">CloudsCode</string>
+    <string name="package_name">com.cloudscode.app</string>
+    <string name="custom_url_scheme">com.cloudscode.app</string>
+</resources>

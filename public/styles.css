@@ -462,7 +462,15 @@ body.scrolled .brand-name { display: none; }
 .spot-chip .sp-dist { color: var(--ink-soft); font-size: 12.5px; flex: none; }
 .spots-empty { font-size: 13px; color: var(--ink-soft); line-height: 1.6; padding: 10px 4px; }
 
-/* 보기 모드 버튼 (기본 ↔ 계기판) */
+/* 모드 게이트 — 기본: 날씨·바람만 / 집중(✈): 드론·항덕 도구까지
+   (비행 체크 · 내 주변 비행장 · METAR 계기판 · 출처별 비교는 집중모드 전용) */
+body:not(.cockpit) #flightcheck,
+body:not(.cockpit) #spots,
+body:not(.cockpit) #cockpit,
+body:not(.cockpit) #sources,
+body:not(.cockpit) #sources-head { display: none !important; }
+
+/* 보기 모드 버튼 (기본 ↔ 집중) */
 .mode-btn { font-weight: 700; }
 .mode-btn.on { background: rgba(111,180,255,0.22) !important; border-color: rgba(111,180,255,0.5) !important; color: #dcebff !important; }
 

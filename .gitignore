@@ -4,3 +4,12 @@ data.json
 data.json.tmp
 metrics.log
 .DS_Store
+
+# 네이티브 빌드 산출물 (프로젝트 소스만 추적)
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+ios/App/Pods/
+ios/App/build/
+ios/DerivedData/

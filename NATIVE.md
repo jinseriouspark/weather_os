@@ -13,16 +13,14 @@
 ## 1. 설치 & 플랫폼 추가
 ```bash
 npm install
-npx cap init CloudsCode com.cloudscode.app --web-dir=public   # 이미 config 있으면 생략
-npx cap add ios
-npx cap add android
-npx cap sync
+# ios/·android/ 네이티브 프로젝트는 이미 저장소에 생성돼 있음
+npx cap sync   # 웹 수정 후 네이티브에 반영할 때
 ```
 `webDir: public` 라서 프론트가 앱에 번들된다. API는 `app.js`의 `API_BASE`(Render 도메인)로 절대호출하도록 이미 처리됨. **배포 도메인 바뀌면 `API_BASE` 한 줄만 수정.**
 
 ## 2. ATT — 광고추적 동의 (iOS, IDFA 수집의 합법 조건)
 ```bash
-npm i @capacitor-community/app-tracking-transparency
+npm i @capgo/capacitor-app-tracking-transparency
 npx cap sync
 ```
 `ios/App/App/Info.plist` 에 사용 목적 문구 추가:
