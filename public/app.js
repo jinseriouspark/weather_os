@@ -705,11 +705,88 @@ function renderFlightCheck(data) {
   // 관제권/공역에 걸리면 드론원스톱 신청 바로가기 (공식 API/SSO는 미제공이라 딥링크로 연결)
   const needApply = a?.controlZone || (a?.zones || []).length > 0;
   const applyBtn = needApply
-    ? `<a class="fc-apply" href="https://drone.onestop.go.kr" target="_blank" rel="noopener">드론원스톱에서 비행승인 신청 →</a>` : '';
+    ? `<button class="fc-apply" id="fcApply" type="button">🛫 비행승인 준비 · 드론원스톱 →</button>` : '';
   el.innerHTML = `<div class="fc-card">${rows.map((r) =>
     `<div class="fc-row ${r.cls}"><span class="fc-dot"></span><span>${r.html}</span></div>`).join('')}
     ${applyBtn}
     <div class="fc-note">참고용 · 실제 비행 가능 여부는 드론원스톱 승인 기준${a?.zonesSource === 'vworld' ? ' · 공역: V-World 정밀' : ' · 공역: 근사'}</div></div>`;
+  const ab = document.getElementById('fcApply');
+  if (ab) ab.onclick = () => openApplySheet(data);
+}
+
+// ── 비행승인 신청 준비: 앱이 아는 정보(장소·좌표·공역·기체)를 정리해 '복붙용' 신청내용 생성 ──
+//   드론원스톱은 외부 자동입력 API가 없으므로, 클립보드 복사 + 딥링크로 신청을 돕는다.
+//   신청인 개인정보(성명·연락처·신고번호)는 이 기기(localStorage)에만 저장 — 서버 전송 안 함.
+function loadApplicant() { try { return JSON.parse(localStorage.getItem('wx.applicant')) || {}; } catch { return {}; } }
+function saveApplicant(a) { localStorage.setItem('wx.applicant', JSON.stringify(a)); }
+
+function airspaceText(a) {
+  const parts = [];
+  if (a?.controlZone) parts.push(`${a.name}공항 관제권 ${a.distanceKm}km 이내 (비행승인 필요)`);
+  for (const z of a?.zones || []) parts.push(`${z.id} ${z.name}${z.distanceKm != null ? ` ${z.distanceKm}km` : ''}`);
+  return parts.join(' / ') || '특이 공역 없음 (관제권 밖)';
+}
+
+function buildApplyText(f, region, zoneTxt, ad) {
+  const loc = state.lat != null ? `${region} (위도 ${state.lat.toFixed(5)}, 경도 ${state.lon.toFixed(5)})` : region;
+  return [
+    '[비행승인 신청 준비 · CloudsCode]',
+    `■ 신청인: ${f.name || '(미입력)'} / ${f.phone || '(미입력)'}`,
+    `■ 비행목적: ${f.purpose || '(미입력)'}`,
+    `■ 비행일시: ${[f.date, f.time].filter(Boolean).join(' ') || '(미입력)'}`,
+    `■ 비행장소: ${loc}`,
+    '■ 비행반경/고도: 반경 500m 이내 / 최고 150m 미만(AGL)',
+    `■ 공역: ${zoneTxt}`,
+    `■ 비행기체: ${ad ? `${ad.name} / 중량 ${ad.weight || '?'}g` : '(미선택)'} / 신고번호 ${f.regNo || '(미입력)'}`,
+    `■ 조종자: ${f.name || '(미입력)'} / 자격 ${f.cert || '(선택)'}`,
+    '※ 신청 편의용 정리이며, 실제 승인 기준은 드론원스톱에서 확인하세요.',
+  ].join('\n');
+}
+
+function openApplySheet(data) {
+  const a = data.airspace;
+  const ad = activeDrone();
+  const region = data.location.region || state.city;
+  const app = loadApplicant();
+  const zoneTxt = airspaceText(a);
+  const now = new Date();
+  const dateVal = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  openSheet(`
+    <div class="bs-title">🛫 비행승인 준비</div>
+    <div class="bs-meta">아래 내용을 <b>복사</b>해 드론원스톱 신청서에 붙여넣으세요.<br>입력값은 이 기기에만 저장돼요 (서버 전송 안 함).</div>
+    <div class="bs-summary">
+      <div><span>장소</span><b>${escHtml(region)}</b>${state.lat != null ? ` · ${state.lat.toFixed(4)}, ${state.lon.toFixed(4)}` : ''}</div>
+      <div><span>공역</span>${escHtml(zoneTxt)}</div>
+      <div><span>기체</span>${ad ? `${escHtml(ad.name)} · ${escHtml(String(ad.weight || '?'))}g` : '미선택'}</div>
+      <div><span>고도</span>최고 150m 미만 · 반경 500m</div>
+    </div>
+    <label class="bs-label">비행 일시</label>
+    <div class="bs-row"><input id="apDate" class="bs-input" type="date" value="${dateVal}" />
+      <input id="apTime" class="bs-input" type="text" placeholder="예: 14:00~16:00" value="${escHtml(app.time || '')}" /></div>
+    <label class="bs-label">비행 목적</label>
+    <input id="apPurpose" class="bs-input" placeholder="예: 취미비행 / 항공촬영" value="${escHtml(app.purpose || '')}" />
+    <label class="bs-label">신청인 (성명 · 연락처)</label>
+    <div class="bs-row"><input id="apName" class="bs-input" placeholder="성명" value="${escHtml(app.name || '')}" />
+      <input id="apPhone" class="bs-input" type="tel" placeholder="연락처" value="${escHtml(app.phone || '')}" /></div>
+    <label class="bs-label">기체 신고번호 · 조종자격</label>
+    <div class="bs-row"><input id="apReg" class="bs-input" placeholder="신고번호" value="${escHtml(app.regNo || '')}" />
+      <input id="apCert" class="bs-input" placeholder="자격 (선택)" value="${escHtml(app.cert || '')}" /></div>
+    <button id="apCopy" class="bs-primary" type="button">📋 신청내용 복사</button>
+    <a class="bs-ghost bs-link" href="https://drone.onestop.go.kr" target="_blank" rel="noopener">드론원스톱 열기 →</a>`);
+  document.getElementById('apCopy').onclick = async () => {
+    const g = (id) => (document.getElementById(id).value || '').trim();
+    const f = { date: g('apDate'), time: g('apTime'), purpose: g('apPurpose'), name: g('apName'), phone: g('apPhone'), regNo: g('apReg'), cert: g('apCert') };
+    saveApplicant({ time: f.time, purpose: f.purpose, name: f.name, phone: f.phone, regNo: f.regNo, cert: f.cert });
+    const text = buildApplyText(f, region, zoneTxt, ad);
+    try {
+      await navigator.clipboard.writeText(text);
+      toast('신청내용을 복사했어요 · 드론원스톱에 붙여넣기');
+    } catch {
+      openSheet(`<div class="bs-title">신청내용 (길게 눌러 복사)</div>
+        <textarea class="bs-input" rows="11" readonly style="font-size:13px;line-height:1.5">${escHtml(text)}</textarea>
+        <button class="bs-primary" type="button" onclick="closeSheet()">확인</button>`);
+    }
+  };
 }
 
 // ── 기록 탭: 내 드론 요약 (오늘 비행 기체 + 관리 진입) ──

@@ -478,7 +478,7 @@ body.scrolled .hero-hint { opacity: 0; }
 .fc-row.caution { color: #fff2cc; }
 .fc-apply { display: inline-flex; align-self: flex-start; padding: 8px 14px; border-radius: 999px;
   background: rgba(255,107,94,0.16); border: 1px solid rgba(255,107,94,0.45); color: #ffd9d4;
-  font-size: 13px; font-weight: 700; text-decoration: none; }
+  font-size: 13px; font-weight: 700; text-decoration: none; cursor: pointer; font-family: inherit; }
 .fc-apply:active { transform: scale(0.97); }
 .fc-note { font-size: 11px; color: var(--ink-faint); margin-top: 1px; }
 
@@ -744,6 +744,19 @@ body.tab-log .sheet > .section-title:first-child { margin-top: 12px; }
 .loc-chip { background: var(--glass); color: var(--ink); border: 1px solid var(--glass-border);
   border-radius: 999px; padding: 9px 15px; font-size: 14px; font-weight: 600; cursor: pointer; }
 .loc-chip:active { background: var(--glass-strong); transform: scale(0.96); }
+
+/* ── 비행승인 준비 시트 (요약 + 라벨 필드) ── */
+.bs-summary { background: rgba(255,255,255,0.045); border: 1px solid var(--glass-hair);
+  border-radius: 14px; padding: 12px 14px; margin-bottom: 16px; }
+.bs-summary > div { display: flex; gap: 10px; font-size: 13px; color: var(--ink); line-height: 1.5;
+  padding: 3px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+.bs-summary > div:last-child { border-bottom: 0; }
+.bs-summary > div > span:first-child { flex: none; width: 40px; color: var(--ink-soft); font-weight: 600; }
+.bs-label { display: block; font-size: 12px; font-weight: 700; color: var(--ink-soft);
+  margin: 2px 0 6px 2px; letter-spacing: -0.1px; }
+.bs-row { display: flex; gap: 8px; }
+.bs-row .bs-input { flex: 1; min-width: 0; }
+.bs-link { display: block; text-align: center; text-decoration: none; }
 
 /* ── 토스트 (짧은 상태 알림 — alert 대체) ── */
 .toast {
