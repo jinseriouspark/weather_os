@@ -736,6 +736,9 @@ body.tab-log .sheet > .section-title:first-child { margin-top: 12px; }
 .bs-ghost { width: 100%; box-sizing: border-box; background: none; border: none; color: var(--ink-soft);
   font-size: 15px; font-weight: 600; cursor: pointer; padding: 11px; }
 .bs-ghost:active { color: var(--ink); }
+/* 시트 구분선 ("또는 지역 검색") */
+.bs-divider { display: flex; align-items: center; gap: 10px; margin: 14px 2px; color: var(--ink-soft); font-size: 12px; }
+.bs-divider::before, .bs-divider::after { content: ""; flex: 1; height: 1px; background: var(--glass-hair); }
 /* 지역 시트: 검색 + 현재위치 + 도시 칩 */
 .loc-search { position: relative; margin-bottom: 12px; }
 .loc-search .bs-input { margin-bottom: 0; }

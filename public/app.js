@@ -1533,16 +1533,17 @@ function useMyLocation() {
 // 지역 바텀시트: 검색 입력 + 현재 위치 + 주요 도시 칩
 function openLocationSheet() {
   const chips = CITIES.map((c) => `<button class="loc-chip" data-city="${escHtml(c.name)}" type="button">${escHtml(c.name)}</button>`).join('');
+  // GPS를 맨 위 기본 액션으로 (검색 자동포커스로 키보드가 가리지 않게 — 포커스는 사용자가 탭할 때만)
   openSheet(`
     <div class="bs-title">지역 선택</div>
+    <button id="bsGeo" class="bs-primary" type="button">📍 현재 위치로 찾기</button>
+    <div class="bs-divider"><span>또는 지역 검색</span></div>
     <div class="loc-search"><input id="bsCity" class="bs-input" type="search" inputmode="search" placeholder="동·읍·면 검색 (예: 남영동)" autocomplete="off" />
       <div id="bsCityResults" class="city-results hidden" role="listbox"></div></div>
-    <button id="bsGeo" class="bs-primary" type="button">📍 현재 위치 사용</button>
     <div class="loc-chips">${chips}</div>`);
   const input = document.getElementById('bsCity');
   const results = document.getElementById('bsCityResults');
   setupCitySearch(input, results, closeSheet);
-  setTimeout(() => input.focus(), 120);
   document.getElementById('bsGeo').onclick = useMyLocation;
   document.querySelectorAll('.loc-chip').forEach((c) => {
     c.onclick = () => {
