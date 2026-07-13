@@ -57,7 +57,8 @@ export async function fetchOpenMeteo(lat, lon) {
   current.windDirText = degToCompass(current.windDir);
 
   const h = data.hourly || {};
-  const hourly = (h.time || []).slice(0, 24).map((t, i) => {
+  // 48시간: 비행 타임라인이 저녁·야간에도 '앞으로 18시간'을 항상 채울 수 있게(오늘만이면 저녁엔 바닥남)
+  const hourly = (h.time || []).slice(0, 48).map((t, i) => {
     const wmo = decodeWmo(h.weather_code?.[i]);
     return makePoint({
       time: t,

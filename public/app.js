@@ -223,6 +223,9 @@ function render() {
   // 비행 체크(관제권·일몰) — 드론 "여기 날려도 되나"
   renderFlightCheck(data);
 
+  // 비행 타임라인 — 앞으로 몇 시가 날릴 만한지(골든타임)
+  renderTimeline(data);
+
   // 내 주변 비행장 섹션 표시/숨김
   const sp = document.getElementById('spots');
   if (sp) sp.classList.toggle('hidden', hiddenSections().has('spots'));
@@ -712,6 +715,107 @@ function renderFlightCheck(data) {
     <div class="fc-note">참고용 · 실제 비행 가능 여부는 드론원스톱 승인 기준${a?.zonesSource === 'vworld' ? ' · 공역: V-World 정밀' : ' · 공역: 근사'}</div></div>`;
   const ab = document.getElementById('fcApply');
   if (ab) ab.onclick = () => openApplySheet(data);
+}
+
+// ── 비행 타임라인: 앞으로 몇 시가 '날릴 만한지' 시간대별 GO/CAUTION/NOGO 막대 ──
+//   드론 프리셋 임계값을 시간별 예보(바람·돌풍·강수·낙뢰)에 그대로 적용 → '지금'과 같은 기준.
+//   골든타임 = 낮 시간대 중 연속으로 GO 인 가장 긴 구간(바람 좋은 시간).
+const STAT_RANK = { na: 0, go: 1, caution: 2, nogo: 3 };
+
+function hourStatus(preset, h) {
+  const th = preset.thresholds || {};
+  let worst = 'go';
+  const bump = (s) => { if (s && STAT_RANK[s] > STAT_RANK[worst]) worst = s; };
+  if (h.windSpeed != null && th.wind) bump(th.wind(h.windSpeed));
+  if (h.windGust != null && th.gust) bump(th.gust(h.windGust));
+  if (h.precipProb != null && th.precip) bump(th.precip(h.precipProb));
+  if (h.lightning) worst = 'nogo';                 // 낙뢰는 무조건 금지
+  if (h.precipType && h.precipType !== 'none' && (h.precipAmount || 0) > 0) bump('caution');
+  return worst;
+}
+
+// 시간별 예보 배열 선택: Open-Meteo 우선(24h·돌풍 포함), 없으면 기상청 단기예보.
+function hourlySeries(data) {
+  const om = data.sources?.openmeteo?.hourly;
+  if (Array.isArray(om) && om.length) return om;
+  const kma = data.sources?.kma?.hourly;
+  if (Array.isArray(kma) && kma.length) return kma;
+  return [];
+}
+
+function renderTimeline(data) {
+  const el = document.getElementById('timeline');
+  if (!el) return;
+  const series = hourlySeries(data);
+  const preset = activePreset();
+  // 지금 이후의 시간만 (현재 시각 포함). time 은 로컬 ISO(예: 2026-07-13T14:00).
+  const now = new Date();
+  const nowMs = now.getTime();
+  const upcoming = series
+    .map((h) => ({ ...h, t: h.time ? new Date(h.time) : null }))
+    .filter((h) => h.t && h.t.getTime() >= nowMs - 3600000) // 현재 시각대부터
+    .slice(0, 18);
+
+  if (upcoming.length < 3) { el.classList.add('hidden'); el.innerHTML = ''; return; }
+  el.classList.remove('hidden');
+
+  const sunrise = data.sun?.sunrise ? new Date(data.sun.sunrise) : null;
+  const sunset = data.sun?.sunset ? new Date(data.sun.sunset) : null;
+  const isDayHour = (t) => {
+    if (!sunrise || !sunset) return true;
+    const mod = (d) => ((d.getHours() * 60 + d.getMinutes()));
+    const m = mod(t), a = mod(sunrise), b = mod(sunset);
+    return m >= a && m <= b;
+  };
+
+  // 각 시간 상태 + 낮여부
+  const hours = upcoming.map((h) => ({
+    t: h.t,
+    hour: h.t.getHours(),
+    wind: h.windSpeed != null ? Math.round(h.windSpeed * 10) / 10 : null,
+    gust: h.windGust != null ? Math.round(h.windGust) : null,
+    rain: h.precipProb != null ? Math.round(h.precipProb) : null,
+    lightning: !!h.lightning,
+    precip: h.precipType && h.precipType !== 'none' ? h.precipType : null,
+    status: hourStatus(preset, h),
+    day: isDayHour(h.t),
+  }));
+
+  // 골든타임: 낮 시간대 중 연속 GO 가장 긴 구간
+  let best = null, run = null;
+  for (const h of hours) {
+    if (h.status === 'go' && h.day) {
+      run = run ? { ...run, end: h.hour, n: run.n + 1 } : { start: h.hour, end: h.hour, n: 1 };
+      if (!best || run.n > best.n) best = run;
+    } else run = null;
+  }
+  const goldenChip = best && best.n >= 2
+    ? `<div class="tl-golden"><span class="tl-golden-dot"></span>골든타임 <b>${best.start}–${best.end}시</b> · 바람 좋은 시간</div>`
+    : hours.some((h) => h.status === 'go' && h.day)
+      ? `<div class="tl-golden soft"><span class="tl-golden-dot"></span>지금 조건이 날릴 만해요</div>`
+      : `<div class="tl-golden none">앞으로 18시간 내 바람이 잔잔해지는 구간이 없어요</div>`;
+
+  // 막대: 바람 세기(0~15㎧)를 높이로, 상태를 색으로. 밤은 흐리게.
+  const WMAX = 15;
+  const bars = hours.map((h) => {
+    const pct = h.wind != null ? Math.max(8, Math.min(100, (h.wind / WMAX) * 100)) : 8;
+    const mark = h.lightning ? '⚡' : (h.precip === 'snow' ? '❄' : (h.precip ? '🌧' : ''));
+    const label = h.hour === now.getHours() && h.t.getTime() <= nowMs + 3600000 ? '지금' : `${h.hour}`;
+    return `<div class="tl-hour ${h.status} ${h.day ? '' : 'night'}" title="${h.hour}시 · 바람 ${h.wind ?? '?'}㎧${h.gust != null ? ` 돌풍 ${h.gust}` : ''}${h.rain != null ? ` 비 ${h.rain}%` : ''}">
+      <div class="tl-top">${mark || (h.gust != null && h.gust >= 8 ? `G${h.gust}` : '')}</div>
+      <div class="tl-track"><div class="tl-fill" style="height:${pct}%"></div></div>
+      <div class="tl-wind">${h.wind ?? '–'}</div>
+      <div class="tl-hr ${label === '지금' ? 'now' : ''}">${label}</div>
+    </div>`;
+  }).join('');
+
+  const src = data.sources?.openmeteo?.hourly?.length ? 'Open-Meteo' : '기상청';
+  el.innerHTML = `
+    <div class="section-head"><h2 class="section-title">비행 타임라인 · 18시간</h2>
+      <span class="tl-legend"><i class="go"></i>좋음 <i class="caution"></i>주의 <i class="nogo"></i>불가</span></div>
+    ${goldenChip}
+    <div class="tl-track-wrap"><div class="tl-track-row">${bars}</div></div>
+    <div class="tl-note">막대 높이 = 바람 세기 · 색 = ${escHtml(preset._drone ? preset._drone.name + ' 기준' : preset.name + ' 기준')} 판정 · 출처 ${src}</div>`;
 }
 
 // ── 비행승인 신청 준비: 앱이 아는 정보(장소·좌표·공역·기체)를 정리해 '복붙용' 신청내용 생성 ──
