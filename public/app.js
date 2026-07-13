@@ -86,7 +86,7 @@ const state = {
   city: localStorage.getItem(LS.city) || '서울',
   colorBy: localStorage.getItem('wx.colorby') || 'worst', // 출처 박스 색 기준
   theme: localStorage.getItem('wx.theme') || 'soft',      // 'soft'(감성) | 'rugged'(현장)
-  mode: localStorage.getItem('wx.mode') || 'basic',       // 'basic'(기본) | 'cockpit'(계기판·항덕)
+  tab: 'weather',                                          // 'weather' | 'fly' | 'log' (바텀 탭)
   coords: null, // {lat, lon, region, kmaRegion}
   data: null,
 };
@@ -227,19 +227,23 @@ function render() {
   const sp = document.getElementById('spots');
   if (sp) sp.classList.toggle('hidden', hiddenSections().has('spots'));
 
-  // 비행 로그
+  // 기록 탭: 내 드론 요약 + 비행 로그
+  renderMyDrones();
   renderFlightLog();
 
-  // 계기판 모드: METAR 원문 카드
+  // 비행 탭: METAR 원문 카드
   renderCockpit(data);
 
   // 히어로 배경 지도(위치+바람)
   applyHeroMap();
   renderHeroMap();
 
-  // 상단 접힘 타이틀(스크롤 시): 지역 · 온도
+  // 상단 지역명 + 접힘 타이틀(스크롤 시)
+  const region = data.location.region || state.city;
+  const locName = document.getElementById('locName');
+  if (locName) locName.textContent = region;
   const nav = document.getElementById('navtitle');
-  if (nav) nav.innerHTML = `${data.location.region || state.city} · <b>${temp}</b> <span class="nav-dot ${status}"></span>`;
+  if (nav) nav.innerHTML = `<b>${temp}</b> <span class="nav-dot ${status}"></span>`;
 
   // 주간 예보(중기)
   renderWeekly(data);
@@ -505,7 +509,7 @@ function renderWindLead(data, preset) {
       ${rwyDiagram}
     </div>`;
   const sb = document.getElementById('wlShare');
-  if (sb) sb.onclick = () => shareCard().catch(() => alert('공유 이미지를 만들지 못했어요.'));
+  if (sb) sb.onclick = () => shareCard().catch(() => toast('공유 이미지를 만들지 못했어요'));
 }
 
 // ── 공유 카드: 오늘 조건을 이미지(1080×1350)로 만들어 공유/저장 — 인스타 콘텐츠 엔진 ──
@@ -708,6 +712,30 @@ function renderFlightCheck(data) {
     <div class="fc-note">참고용 · 실제 비행 가능 여부는 드론원스톱 승인 기준${a?.zonesSource === 'vworld' ? ' · 공역: V-World 정밀' : ' · 공역: 근사'}</div></div>`;
 }
 
+// ── 기록 탭: 내 드론 요약 (오늘 비행 기체 + 관리 진입) ──
+function renderMyDrones() {
+  const el = document.getElementById('mydrones');
+  if (!el) return;
+  const drones = loadDrones();
+  const ad = activeDrone();
+  const dc = ad ? droneClass(ad.weight) : null;
+  const body = ad
+    ? `<div class="md-active">
+        <div class="md-badge">오늘 비행</div>
+        <div class="md-name">${escHtml(ad.name)}</div>
+        <div class="md-spec">${[ad.weight && `${ad.weight}g`, dc && dc.cls].filter(Boolean).map(escHtml).join(' · ') || '사양 미입력'}</div>
+      </div>`
+    : drones.length
+      ? '<div class="md-empty">오늘 날릴 드론을 선택하세요 — 맞춤 판정이 적용돼요</div>'
+      : '<div class="md-empty">등록된 드론이 없어요. 추가하면 무게 기준 규제·바람 판정을 해드려요</div>';
+  el.innerHTML = `
+    <div class="section-head"><h2 class="section-title">내 드론</h2>
+      <button id="mdManage" class="link-btn" type="button">${drones.length ? '관리' : '추가'}</button></div>
+    <button id="mdOpen" class="md-card" type="button">${body}</button>`;
+  el.querySelector('#mdManage').onclick = showDrones;
+  el.querySelector('#mdOpen').onclick = showDrones;
+}
+
 // ── 비행 로그: '지금 여기서 날렸다' 원탭 기록 — 시각·장소·기체·조건 자동 캡처 ──
 function loadFlights() { try { return JSON.parse(localStorage.getItem('wx.flights')) || []; } catch { return []; } }
 function saveFlights(f) { localStorage.setItem('wx.flights', JSON.stringify(f.slice(0, 200))); }
@@ -716,22 +744,31 @@ function logFlightNow() {
   const d = state.data;
   if (!d) return;
   const w = valueFor(d, 'wind'); const g = valueFor(d, 'gust'); const t = valueFor(d, 'temp');
-  const { status } = evalVerdict(d, activePreset());
   const ad = activeDrone();
-  let note = '';
-  try { note = (prompt('메모 (선택) — 예: 첫 팩, 바람 잔잔') || '').slice(0, 80); } catch { /* prompt 미지원 */ }
-  const f = loadFlights();
-  f.unshift({
-    id: Date.now().toString(36),
-    ts: new Date().toISOString(),
-    place: d.location.region || state.city,
-    drone: ad?.name || null,
-    wind: w.value, gust: g.value, temp: t.value,
-    status, note: note || null,
-  });
-  saveFlights(f);
-  track('flight_log');
-  renderFlightLog();
+  const cond = [w.value != null && `바람 ${w.value}㎧`, g.value != null && `돌풍 ${g.value}㎧`, t.value != null && `${Math.round(t.value)}°`].filter(Boolean).join(' · ');
+  // 시스템 prompt 대신 바텀시트 폼
+  openSheet(`
+    <div class="bs-title">🛫 비행 기록</div>
+    <div class="bs-meta">${escHtml(d.location.region || state.city)}${ad ? ` · ${escHtml(ad.name)}` : ''}<br><span class="bs-mono">${escHtml(cond || '조건 자동 저장')}</span></div>
+    <input id="bsNote" class="bs-input" placeholder="메모 (선택) — 예: 첫 팩, 바람 잔잔" maxlength="80" />
+    <button id="bsSave" class="bs-primary" type="button">기록 저장</button>
+    <button class="bs-ghost" type="button" onclick="closeSheet()">취소</button>`);
+  setTimeout(() => document.getElementById('bsNote')?.focus(), 120);
+  document.getElementById('bsSave').onclick = () => {
+    const note = (document.getElementById('bsNote').value || '').trim().slice(0, 80);
+    const { status } = evalVerdict(d, activePreset());
+    const f = loadFlights();
+    f.unshift({
+      id: Date.now().toString(36), ts: new Date().toISOString(),
+      place: d.location.region || state.city, drone: ad?.name || null,
+      wind: w.value, gust: g.value, temp: t.value, status, note: note || null,
+    });
+    saveFlights(f);
+    track('flight_log');
+    closeSheet();
+    renderFlightLog();
+    toast('비행 기록 저장됨');
+  };
 }
 
 function renderFlightLog() {
@@ -773,7 +810,7 @@ function setupSpots() {
   const list = document.getElementById('spotsList');
   if (!btn || !list) return;
   btn.onclick = async () => {
-    if (state.lat == null) return alert('먼저 위치(GPS 또는 지역 검색)를 잡아주세요.');
+    if (state.lat == null) return toast('먼저 위치를 잡아주세요');
     btn.disabled = true; btn.textContent = '🛩 비행장 찾는 중…';
     try {
       const res = await fetch(`${API_BASE}/api/spots?lat=${state.lat}&lon=${state.lon}`);
@@ -808,21 +845,6 @@ function setupSpots() {
       btn.disabled = false; btn.textContent = '🛩 내 주변 비행장 찾기';
     }
   };
-}
-
-// ── 보기 모드 (기본 ↔ 집중) — 집중모드에서만 항덕 화면(METAR 계기판)이 보인다 ──
-function applyMode() {
-  const cockpit = state.mode === 'cockpit';
-  document.body.classList.toggle('cockpit', cockpit);
-  const btn = document.getElementById('modeBtn');
-  if (btn) { btn.textContent = cockpit ? '✈ 집중' : '기본'; btn.classList.toggle('on', cockpit); }
-}
-function toggleMode() {
-  state.mode = state.mode === 'cockpit' ? 'basic' : 'cockpit';
-  localStorage.setItem('wx.mode', state.mode);
-  applyMode();
-  track(state.mode === 'cockpit' ? 'mode_cockpit' : 'mode_basic');
-  if (state.data) renderCockpit(state.data);
 }
 
 // ── METAR 원문 토큰 해독 (항덕 계기판) ── 순수 클라이언트, 어떤 METAR 문자열이든 동작
@@ -879,7 +901,6 @@ function decodeMetar(raw) {
 function renderCockpit(data) {
   const el = document.getElementById('cockpit');
   if (!el) return;
-  if (state.mode !== 'cockpit') { el.classList.add('hidden'); el.innerHTML = ''; return; }
   el.classList.remove('hidden');
   const cur = data.sources?.kma_metar?.current;
   const ap = cur?.airport;
@@ -1186,7 +1207,7 @@ function showDrones() {
   const val = (id) => document.getElementById(id).value.trim();
   document.getElementById('dr-add').onclick = () => {
     const name = val('dr-name');
-    if (!name) { alert('드론 이름을 입력하세요.'); return; }
+    if (!name) { toast('드론 이름을 입력하세요'); return; }
     const d = loadDrones();
     d.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
       name, frame: val('dr-frame'), motor: val('dr-motor'), battery: val('dr-battery'), weight: val('dr-weight') });
@@ -1224,6 +1245,42 @@ function closeModal() {
   document.getElementById('modal').classList.add('hidden');
 }
 
+// ── 토스트 (alert 대체) ──
+let toastTimer = null;
+function toast(msg) {
+  const t = document.getElementById('toast');
+  if (!t) return;
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
+}
+
+// ── 바텀 시트 (prompt/시스템 팝업 대체) ── 슬라이드업, 스크림 탭/제스처로 닫힘
+function openSheet(html) {
+  const s = document.getElementById('bsheet');
+  document.getElementById('bsheetBody').innerHTML = html;
+  s.classList.remove('hidden');
+  requestAnimationFrame(() => s.classList.add('show'));
+}
+function closeSheet() {
+  const s = document.getElementById('bsheet');
+  s.classList.remove('show');
+  setTimeout(() => s.classList.add('hidden'), 260);
+}
+
+// ── 바텀 탭 전환 (날씨 · 비행 · 기록) ──
+function switchTab(name) {
+  if (!['weather', 'fly', 'log'].includes(name)) name = 'weather';
+  state.tab = name;
+  document.body.classList.remove('tab-weather', 'tab-fly', 'tab-log');
+  document.body.classList.add('tab-' + name);
+  document.querySelectorAll('.tabpanel').forEach((p) => p.classList.toggle('hidden', p.dataset.tab !== name));
+  document.querySelectorAll('#tabbar .tab').forEach((b) => b.setAttribute('aria-current', b.dataset.go === name ? 'true' : 'false'));
+  window.scrollTo({ top: 0 });
+  if (state.data) render();
+}
+
 // ── 컨트롤 초기화/동기화 ──
 function syncControls() {
   const ps = document.getElementById('presetSelect');
@@ -1259,33 +1316,60 @@ function initControls() {
     };
   }
 
-  document.getElementById('geoBtn').onclick = () => {
-    if (!navigator.geolocation) return alert('이 브라우저는 위치를 지원하지 않습니다.');
-    const btn = document.getElementById('geoBtn');
-    btn.classList.add('busy');
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const lat = pos.coords.latitude, lon = pos.coords.longitude;
-        const near = nearestCity(lat, lon);
-        const display = await reverseGeocode(lat, lon).catch(() => null) || near.name;
-        // 정밀 좌표로 날씨 조회, 표시는 읍면동, 기상청 특보/중기는 대표 도시로 매핑
-        state.coords = { lat, lon, region: display, kmaRegion: near.name };
-        btn.classList.remove('busy');
-        load('geo');
-      },
-      () => { btn.classList.remove('busy'); alert('위치를 가져오지 못했습니다.'); },
-      { enableHighAccuracy: true, timeout: 10000 }
-    );
-  };
-  document.getElementById('refreshBtn').onclick = () => load('refresh');
-  document.getElementById('customizeBtn').onclick = showCustomize;
-  const db = document.getElementById('dronesBtn');
-  if (db) db.onclick = showDrones;
-  const mb = document.getElementById('modeBtn');
-  if (mb) mb.onclick = toggleMode;
+  document.getElementById('refreshBtn').onclick = () => { load('refresh'); toast('새로고침'); };
+  // 상단 지역 버튼 → 지역 바텀시트(검색 + 현재 위치)
+  const locBtn = document.getElementById('locBtn');
+  if (locBtn) locBtn.onclick = openLocationSheet;
+  // 커스터마이즈(기록 탭)
+  document.getElementById('customizeBtn')?.addEventListener('click', showCustomize);
+  // 바텀 탭바
+  document.querySelectorAll('#tabbar .tab').forEach((b) => { b.onclick = () => switchTab(b.dataset.go); });
   setupSpots();
   document.getElementById('modal').onclick = (e) => { if (e.target.id === 'modal') closeModal(); };
+  // 바텀시트 스크림 탭 → 닫기
+  document.getElementById('bsheet').onclick = (e) => { if (e.target.classList.contains('bsheet-scrim')) closeSheet(); };
   setupMapLive();
+}
+
+// 현재 위치 사용 (지역 시트에서 호출)
+function useMyLocation() {
+  if (!navigator.geolocation) return toast('이 브라우저는 위치를 지원하지 않습니다');
+  toast('현재 위치 확인 중…');
+  navigator.geolocation.getCurrentPosition(
+    async (pos) => {
+      const lat = pos.coords.latitude, lon = pos.coords.longitude;
+      const near = nearestCity(lat, lon);
+      const display = (await reverseGeocode(lat, lon).catch(() => null)) || near.name;
+      state.coords = { lat, lon, region: display, kmaRegion: near.name };
+      closeSheet();
+      load('geo');
+    },
+    () => toast('위치를 가져오지 못했습니다 (권한 확인)'),
+    { enableHighAccuracy: true, timeout: 10000 }
+  );
+}
+
+// 지역 바텀시트: 검색 입력 + 현재 위치 + 주요 도시 칩
+function openLocationSheet() {
+  const chips = CITIES.map((c) => `<button class="loc-chip" data-city="${escHtml(c.name)}" type="button">${escHtml(c.name)}</button>`).join('');
+  openSheet(`
+    <div class="bs-title">지역 선택</div>
+    <div class="loc-search"><input id="bsCity" class="bs-input" type="search" inputmode="search" placeholder="동·읍·면 검색 (예: 남영동)" autocomplete="off" />
+      <div id="bsCityResults" class="city-results hidden" role="listbox"></div></div>
+    <button id="bsGeo" class="bs-primary" type="button">📍 현재 위치 사용</button>
+    <div class="loc-chips">${chips}</div>`);
+  const input = document.getElementById('bsCity');
+  const results = document.getElementById('bsCityResults');
+  setupCitySearch(input, results, closeSheet);
+  setTimeout(() => input.focus(), 120);
+  document.getElementById('bsGeo').onclick = useMyLocation;
+  document.querySelectorAll('.loc-chip').forEach((c) => {
+    c.onclick = () => {
+      state.city = c.dataset.city; state.coords = null;
+      localStorage.setItem(LS.city, state.city);
+      closeSheet(); load('city');
+    };
+  });
 }
 
 // 확대·이동 구간: '아래로' 탭 시 시트로 이동, +/− 로 지도 줌(시군구 상세)
@@ -1336,7 +1420,7 @@ async function searchPlaces(q) {
   return out;
 }
 
-function setupCitySearch(input, panel) {
+function setupCitySearch(input, panel, onDone) {
   input.value = state.coords?.region || state.city || '';
   let timer = null, seq = 0;
   const hide = () => panel.classList.add('hidden');
@@ -1355,6 +1439,7 @@ function setupCitySearch(input, panel) {
     input.value = it.name;
     input.blur();
     hide();
+    if (typeof onDone === 'function') onDone();
     load('search');
   };
   const run = async (q) => {
@@ -1461,9 +1546,11 @@ function setupInstall() {
       await deferredInstall.userChoice;
       deferredInstall = null; btn.classList.add('hidden');
     } else if (isIOS) {
-      alert('아이폰 설치 방법:\n\nSafari 하단 공유 버튼(□↑) → "홈 화면에 추가" → 추가\n\n그러면 홈 화면에 앱 아이콘이 생기고, 주소창 없이 전체화면으로 실행됩니다.');
+      openSheet(`<div class="bs-title">📲 홈 화면에 추가</div>
+        <div class="bs-meta">Safari 하단 <b>공유 버튼(□↑)</b> → <b>"홈 화면에 추가"</b> → 추가<br>주소창 없이 전체화면 앱처럼 실행돼요.</div>
+        <button class="bs-primary" type="button" onclick="closeSheet()">확인</button>`);
     } else {
-      alert('브라우저 메뉴에서 "앱 설치" 또는 "홈 화면에 추가"를 선택하세요.');
+      toast('브라우저 메뉴 → "앱 설치"를 선택하세요');
     }
   };
 }
@@ -1492,10 +1579,10 @@ function nearestCity(lat, lon) {
 
 // ── 시작 ──
 applyTheme();
-applyMode();
+initControls();
+switchTab(state.tab); // 바텀 탭 초기화(날씨)
 setupInstall();
 window.addEventListener('scroll', onHeroScroll, { passive: true });
-initControls();
 if (!localStorage.getItem(LS.onboarded)) {
   showOnboarding();
 }

@@ -47,15 +47,35 @@ body > * { position: relative; z-index: 1; }
 .ico { width: 15px; height: 15px; vertical-align: -2px; opacity: 0.92; flex: none; }
 .brand-ico { border-radius: 7px; vertical-align: -5px; }
 
-/* ── 상단바 ── */
+/* ── 상단바 (슬림: 지역 · 프리셋 · 새로고침) ── */
 .topbar {
   display: flex; justify-content: space-between; align-items: center;
-  padding: 12px 18px; gap: 8px; flex-wrap: wrap;
+  padding: 10px 14px; gap: 8px;
   position: sticky; top: 0; z-index: 20;
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(10, 15, 23, 0.55);
   -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur);
   border-bottom: 1px solid var(--glass-hair);
 }
+/* 지역 버튼 (탭하면 지역 시트) */
+.loc-btn { display: flex; align-items: center; gap: 6px; background: none; border: none; color: var(--ink);
+  font-size: 17px; font-weight: 700; letter-spacing: -0.3px; cursor: pointer; padding: 4px 4px; min-width: 0;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.35); }
+.loc-btn .ico { width: 18px; height: 18px; opacity: 0.85; }
+.loc-btn .caret { width: 15px; height: 15px; opacity: 0.6; }
+.loc-name { max-width: 46vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.loc-btn:active { opacity: 0.7; }
+.top-actions { display: flex; align-items: center; gap: 8px; flex: none; }
+.top-actions select { background: var(--glass); color: var(--ink); border: 1px solid var(--glass-border);
+  border-radius: 980px; padding: 7px 12px; font-size: 13px; cursor: pointer; -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+.top-actions option { color: #10233a; }
+.top-actions button { width: 38px; height: 38px; border-radius: 50%; background: var(--glass); color: var(--ink);
+  border: 1px solid var(--glass-border); cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+.top-actions button:active { transform: scale(0.92); }
+.navtitle { display: none; }
+body.scrolled.tab-weather .navtitle { display: inline-flex; align-items: center; gap: 5px; margin-left: 4px; font-size: 15px; font-weight: 800; }
+
+/* (구) controls 스타일 — 남은 요소 호환 */
 .brand { font-weight: 700; font-size: 17px; letter-spacing: -0.3px; display: flex; align-items: center; gap: 8px; text-shadow: 0 1px 3px rgba(0,0,0,0.25); }
 .controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .controls select, .controls button, .navlink {
@@ -192,8 +212,7 @@ body.scrolled .hero-hint { opacity: 0; }
 .navtitle { display: none; font-weight: 700; font-size: 15px; letter-spacing: -0.2px; align-items: center; gap: 6px; }
 .navtitle .nav-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
 .nav-dot.go { background: var(--go); } .nav-dot.caution { background: var(--caution); } .nav-dot.nogo { background: var(--nogo); } .nav-dot.na { background: var(--na); }
-body.scrolled .navtitle { display: inline-flex; }
-body.scrolled .brand-name { display: none; }
+/* navtitle 노출은 상단바 규칙(body.scrolled.tab-weather)에서 탭별로 제어 */
 
 /* ── 히어로 내부 (지역 → 큰 온도 → 하늘 → 판정) ── */
 .verdict {
@@ -322,7 +341,6 @@ body.scrolled .brand-name { display: none; }
 .rw-wind path { fill: var(--accent); }
 .rw-wind line { stroke: var(--accent); stroke-width: 3.5; stroke-linecap: round; }
 /* 기본 모드에선 활주로 요소 숨김 (기본 = 날씨·바람 방향만) */
-body:not(.cockpit) .wl-rwy, body:not(.cockpit) .wl-comp, body:not(.cockpit) .wl-rwy-diagram { display: none; }
 .wl-card { position: relative; flex-wrap: wrap; }
 .wl-share { position: absolute; top: 10px; right: 10px; width: 36px; height: 36px; border-radius: 12px;
   border: 1px solid var(--glass-border); background: rgba(255,255,255,0.07); color: var(--ink);
@@ -496,18 +514,6 @@ body:not(.cockpit) .wl-rwy, body:not(.cockpit) .wl-comp, body:not(.cockpit) .wl-
 .fl-del { flex: none; width: 26px; height: 26px; border-radius: 8px; border: 1px solid var(--glass-border);
   background: none; color: var(--ink-soft); font-size: 15px; cursor: pointer; line-height: 1; }
 
-/* 모드 게이트 — 기본: 날씨·바람만 / 집중(✈): 드론·항덕 도구까지
-   (비행 체크 · 내 주변 비행장 · METAR 계기판 · 출처별 비교는 집중모드 전용) */
-body:not(.cockpit) #flightcheck,
-body:not(.cockpit) #spots,
-body:not(.cockpit) #flightlog,
-body:not(.cockpit) #cockpit,
-body:not(.cockpit) #sources,
-body:not(.cockpit) #sources-head { display: none !important; }
-
-/* 보기 모드 버튼 (기본 ↔ 집중) */
-.mode-btn { font-weight: 700; }
-.mode-btn.on { background: rgba(111,180,255,0.22) !important; border-color: rgba(111,180,255,0.5) !important; color: #dcebff !important; }
 
 /* ── 계기판 모드: METAR 원문 카드 (항덕) ── */
 .cockpit { margin-bottom: 8px; }
@@ -620,3 +626,133 @@ body.loading #loadbar { opacity: 1; animation: loadbar 1.8s ease-in-out infinite
 @keyframes shimmer { to { transform: translateX(100%); } }
 
 @media (prefers-reduced-motion: reduce) { *, body { transition: none !important; } #loadbar, .skel::after, .skel-line::after { animation: none !important; } }
+
+/* ═══════════════════════════════════════════════════════════════
+   모바일 IA: 바텀 탭바 · 탭 패널 · 바텀시트 · 토스트 (네이티브 패턴)
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── 바텀 탭바 (엄지 영역 · 주 내비게이션) ── */
+.tabbar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 45;
+  display: flex; align-items: stretch;
+  padding-bottom: env(safe-area-inset-bottom, 0);
+  background: rgba(10, 15, 23, 0.86);
+  -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px);
+  border-top: 1px solid var(--glass-hair);
+}
+body.rugged .tabbar { background: #0d1622; -webkit-backdrop-filter: none; backdrop-filter: none; }
+.tabbar .tab {
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  padding: 9px 0 8px; background: none; border: none; cursor: pointer;
+  color: var(--ink-soft); font-size: 11px; font-weight: 600; letter-spacing: -0.1px;
+  transition: color 0.15s ease;
+}
+.tabbar .tab svg { width: 24px; height: 24px; opacity: 0.9; }
+.tabbar .tab[aria-current="true"] { color: var(--accent); }
+.tabbar .tab[aria-current="true"] svg { opacity: 1; }
+.tabbar .tab:active { transform: scale(0.94); }
+
+/* ── 탭 패널 ── */
+.tabpanel.hidden { display: none; }
+
+/* 시트가 바텀 탭바에 가리지 않도록 하단 여백 확보 */
+.sheet { padding-bottom: calc(66px + env(safe-area-inset-bottom, 0) + 20px); }
+
+/* ── 비행/기록 탭: 히어로 지도 숨김 → 시트를 상단부터 바로 표시 ── */
+body.tab-fly .hero-map, body.tab-log .hero-map,
+body.tab-fly .hero-scrim, body.tab-log .hero-scrim,
+body.tab-fly .map-reveal, body.tab-log .map-reveal,
+body.tab-fly #hero, body.tab-log #hero,
+body.tab-fly .map-next, body.tab-log .map-next,
+body.tab-fly .map-zoom, body.tab-log .map-zoom { display: none !important; }
+body.tab-fly, body.tab-log { background: linear-gradient(180deg, #0a0f17 0%, #0e1622 100%) !important; }
+body.tab-fly .sheet, body.tab-log .sheet {
+  border-radius: 0; box-shadow: none; margin-top: 0; min-height: calc(100vh - 120px);
+  background: transparent;
+}
+body.tab-fly .sheet > .section-title:first-child,
+body.tab-log .sheet > .section-title:first-child { margin-top: 12px; }
+
+/* ── 기록 탭: 내 드론 요약 카드 ── */
+.mydrones { margin: 4px 0 18px; }
+.link-btn { background: none; border: none; color: var(--accent); font-size: 13px; font-weight: 700; cursor: pointer; padding: 4px 6px; }
+.link-btn:active { opacity: 0.6; }
+.md-card {
+  display: block; width: 100%; text-align: left; cursor: pointer;
+  background: linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.022) 100%);
+  border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; padding: 16px 18px;
+  color: var(--ink); transition: transform 0.1s ease, border-color 0.15s ease;
+}
+.md-card:active { transform: scale(0.985); border-color: rgba(255,255,255,0.2); }
+.md-badge { display: inline-block; font-size: 10px; font-weight: 800; letter-spacing: 0.04em;
+  color: var(--accent); background: rgba(74,160,255,0.14); border: 1px solid rgba(74,160,255,0.28);
+  border-radius: 6px; padding: 2px 7px; margin-bottom: 8px; }
+.md-name { font-size: 19px; font-weight: 800; letter-spacing: -0.3px; }
+.md-spec { font-size: 13px; color: var(--ink-soft); margin-top: 3px; }
+.md-empty { font-size: 14px; color: var(--ink-soft); line-height: 1.5; }
+
+/* ── 설정 줄 (기록 탭 하단) ── */
+.settings-row { display: flex; flex-direction: column; gap: 2px; margin-top: 22px;
+  padding-top: 14px; border-top: 1px solid var(--glass-hair); }
+.ghost-line { display: inline-flex; align-items: center; gap: 6px; background: none; border: none;
+  color: var(--ink-soft); font-size: 14px; text-decoration: none; cursor: pointer; padding: 11px 4px; text-align: left; }
+.ghost-line:active { color: var(--ink); }
+
+/* ── 바텀시트 (지역검색·입력·액션 — prompt/alert 대체) ── */
+.bsheet { position: fixed; inset: 0; z-index: 70; }
+.bsheet.hidden { display: none; }
+.bsheet-scrim { position: absolute; inset: 0; background: rgba(4,8,14,0.55);
+  opacity: 0; transition: opacity 0.26s ease; -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px); }
+.bsheet.show .bsheet-scrim { opacity: 1; }
+.bsheet-card {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  background: linear-gradient(180deg, #131c28 0%, #0e1622 100%);
+  border-radius: 22px 22px 0 0; border-top: 1px solid rgba(255,255,255,0.12);
+  box-shadow: 0 -16px 44px rgba(0,0,0,0.55);
+  padding: 10px 20px calc(22px + env(safe-area-inset-bottom, 0));
+  transform: translateY(100%); transition: transform 0.28s cubic-bezier(0.22,0.61,0.36,1);
+  max-height: 86vh; overflow-y: auto;
+}
+.bsheet.show .bsheet-card { transform: translateY(0); }
+/* 시트 상단 그랩바 */
+.bsheet-card::before { content: ""; display: block; width: 38px; height: 4px; border-radius: 2px;
+  background: rgba(255,255,255,0.22); margin: 2px auto 14px; }
+.bs-title { font-size: 18px; font-weight: 800; letter-spacing: -0.3px; margin-bottom: 6px; }
+.bs-meta { font-size: 13px; color: var(--ink-soft); line-height: 1.5; margin-bottom: 14px; }
+.bs-mono { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--ink); }
+.bs-input {
+  width: 100%; box-sizing: border-box; background: var(--glass); color: var(--ink);
+  border: 1px solid var(--glass-border); border-radius: 14px; padding: 13px 15px; font-size: 16px;
+  outline: none; margin-bottom: 12px; -webkit-appearance: none;
+}
+.bs-input::placeholder { color: var(--ink-soft); }
+.bs-input:focus { border-color: rgba(74,160,255,0.55); }
+.bs-primary {
+  width: 100%; box-sizing: border-box; border: none; border-radius: 14px; padding: 15px; cursor: pointer;
+  background: linear-gradient(180deg, var(--accent) 0%, #2b7fe0 100%); color: #fff;
+  font-size: 16px; font-weight: 800; letter-spacing: -0.2px; margin-bottom: 8px;
+}
+.bs-primary:active { transform: scale(0.985); filter: brightness(1.06); }
+.bs-ghost { width: 100%; box-sizing: border-box; background: none; border: none; color: var(--ink-soft);
+  font-size: 15px; font-weight: 600; cursor: pointer; padding: 11px; }
+.bs-ghost:active { color: var(--ink); }
+/* 지역 시트: 검색 + 현재위치 + 도시 칩 */
+.loc-search { position: relative; margin-bottom: 12px; }
+.loc-search .bs-input { margin-bottom: 0; }
+.loc-search .city-results { top: calc(100% + 6px); left: 0; right: 0; min-width: 0; max-width: none; }
+.loc-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.loc-chip { background: var(--glass); color: var(--ink); border: 1px solid var(--glass-border);
+  border-radius: 999px; padding: 9px 15px; font-size: 14px; font-weight: 600; cursor: pointer; }
+.loc-chip:active { background: var(--glass-strong); transform: scale(0.96); }
+
+/* ── 토스트 (짧은 상태 알림 — alert 대체) ── */
+.toast {
+  position: fixed; left: 50%; z-index: 80;
+  bottom: calc(78px + env(safe-area-inset-bottom, 0));
+  transform: translate(-50%, 16px); opacity: 0; pointer-events: none;
+  max-width: 88vw; padding: 12px 18px; border-radius: 14px;
+  background: rgba(20, 28, 40, 0.96); color: #fff; font-size: 14px; font-weight: 600;
+  border: 1px solid rgba(255,255,255,0.14); box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  transition: opacity 0.24s ease, transform 0.24s ease;
+}
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
