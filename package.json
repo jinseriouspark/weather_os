@@ -25,7 +25,7 @@
     "@capacitor/cli": "^8.0.0",
     "@capacitor/core": "^8.0.0",
     "@capacitor/ios": "^8.0.0",
-    "@capacitor/android": "^8.0.0",
+    "@capacitor/android": "^8.4.3",
     "@capacitor/push-notifications": "^8.0.0",
     "@capgo/capacitor-app-tracking-transparency": "^8.0.0"
   },
